@@ -1,23 +1,12 @@
 package ch.newsriver.mill;
 
+import ch.newsriver.dao.ElasticsearchPoolUtil;
+import ch.newsriver.data.content.Article;
 import ch.newsriver.data.html.HTML;
-import ch.newsriver.data.url.BaseURL;
 import ch.newsriver.executable.BatchInterruptibleWithinExecutorPool;
+import ch.newsriver.mill.extractor.GanderArticleExtractor;
 import ch.newsriver.util.http.HttpClientPool;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Optional;
-import com.intenthq.gander.Gander;
-import com.intenthq.gander.PageInfo;
-import com.optimaize.langdetect.DetectedLanguage;
-import com.optimaize.langdetect.LanguageDetector;
-import com.optimaize.langdetect.LanguageDetectorBuilder;
-import com.optimaize.langdetect.i18n.LdLocale;
-import com.optimaize.langdetect.ngram.NgramExtractors;
-import com.optimaize.langdetect.profiles.LanguageProfile;
-import com.optimaize.langdetect.profiles.LanguageProfileReader;
-import com.optimaize.langdetect.text.CommonTextObjectFactories;
-import com.optimaize.langdetect.text.TextObject;
-import com.optimaize.langdetect.text.TextObjectFactory;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -27,8 +16,11 @@ import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.jsoup.Jsoup;
-import scala.Option;
+import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.index.IndexResponse;
+import org.elasticsearch.action.percolate.PercolateResponse;
+import org.elasticsearch.client.Client;
+import org.elasticsearch.client.Requests;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -36,9 +28,11 @@ import java.io.InputStream;
 import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
+import java.sql.Timestamp;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
+
 import java.util.Properties;
 
 /**
@@ -56,7 +50,6 @@ public class Mill extends BatchInterruptibleWithinExecutorPool implements Runnab
     Consumer<String, String> consumer;
     Producer<String, String> producer;
 
-    private  LanguageDetector languageDetector;
 
     public Mill() throws IOException {
 
@@ -104,10 +97,7 @@ public class Mill extends BatchInterruptibleWithinExecutorPool implements Runnab
         consumer.subscribe(Arrays.asList("raw-html"));
         producer = new KafkaProducer(props);
 
-        List<LanguageProfile> languageProfiles = new LanguageProfileReader().readAllBuiltIn();
-        languageDetector = LanguageDetectorBuilder.create(NgramExtractors.standard())
-                .withProfiles(languageProfiles)
-                .build();
+
 
     }
 
@@ -125,33 +115,47 @@ public class Mill extends BatchInterruptibleWithinExecutorPool implements Runnab
         while (run) {
             try {
                 ConsumerRecords<String, String> records = consumer.poll(1000);
+                MillMain.addMetric("HTMLs in", records.count());
                 for (ConsumerRecord<String, String> record : records) {
                     this.waitFreeBatchExecutors(BATCH_SIZE);
-                    MillMain.addMetric("URLs in", 1);
 
                     supplyAsyncInterruptWithin(() -> {
                         HTML html = null;
                         try {
                             html = mapper.readValue(record.value(), HTML.class);
                         } catch (IOException e) {
-                            logger.error("Error deserialising BaseURL", e);
+                            logger.error("Error deserializing BaseURL", e);
                             return null;
                         }
-                        String pageText = Jsoup.parseBodyFragment(html.getRawHTML()).body().text();
-                        TextObjectFactory textObjectFactory = CommonTextObjectFactories.forDetectingOnLargeText();
-                        TextObject textObject = textObjectFactory.forText(pageText);
-                        List<DetectedLanguage> langList = languageDetector.getProbabilities(textObject);
-                        if(langList.size()==0){
-                            
-                        }
 
-                        languageDetector.detect(pageText);
-                        try {
-                            PageInfo pageInfo = Gander.extract(html.getRawHTML(), "it").get();
+                        GanderArticleExtractor extractor = new GanderArticleExtractor();
+                        Article article = extractor.extract(html);
 
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                            System.out.print(e.getMessage());
+                        if(article!=null){
+                                Client client = null;
+                                try {
+                                    client = ElasticsearchPoolUtil.getInstance().getClient();
+                                    IndexRequest indexRequest = new IndexRequest("newsriver","article");
+                                    indexRequest.source(mapper.writeValueAsString(article));
+                                    IndexResponse response = client.index(indexRequest).actionGet();
+
+                                    if(response.isCreated()){
+                                        article.setId(response.getId());
+                                        String json = null;
+                                        try {
+                                            json = mapper.writeValueAsString(article);
+                                        } catch (IOException e) {
+                                            logger.fatal("Unable to serialize mill result", e);
+                                            return null;
+                                        }
+                                        producer.send(new ProducerRecord<String, String>("raw-article", html.getReferral().getNormalizeURL(), json));
+                                        MillMain.addMetric("Articles out", records.count());
+                                    }
+
+
+                                } catch (Exception e) {
+                                    logger.error("Unable to save article in elasticsearch", e);
+                                } finally {}
                         }
 
                         return null;
