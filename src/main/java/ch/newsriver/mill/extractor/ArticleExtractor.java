@@ -1,8 +1,9 @@
 package ch.newsriver.mill.extractor;
 
 import ch.newsriver.data.content.Article;
-import ch.newsriver.data.content.Publisher;
+import ch.newsriver.data.publisher.Publisher;
 import ch.newsriver.data.html.HTML;
+import ch.newsriver.mill.extractor.publisher.PublisherExtractor;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -38,13 +39,8 @@ public abstract class ArticleExtractor {
 
     public Publisher extractPublisher(HTML html){
 
-
-        String domain = extractDomain(html.getUrl());
-        Publisher publisher = new Publisher();
-        publisher.setSiteName(domain);
-
-        //TODO: check for publisher location, name, icon, etc.
-        return publisher;
+        PublisherExtractor publisherExtractor = new PublisherExtractor();
+        return publisherExtractor.extract(html);
     }
 
 

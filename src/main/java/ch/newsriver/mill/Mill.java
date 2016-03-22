@@ -98,7 +98,6 @@ public class Mill extends BatchInterruptibleWithinExecutorPool implements Runnab
         producer = new KafkaProducer(props);
 
 
-
     }
 
     public void stop() {
@@ -131,31 +130,43 @@ public class Mill extends BatchInterruptibleWithinExecutorPool implements Runnab
                         GanderArticleExtractor extractor = new GanderArticleExtractor();
                         Article article = extractor.extract(html);
 
-                        if(article!=null){
-                                Client client = null;
-                                try {
-                                    client = ElasticsearchPoolUtil.getInstance().getClient();
-                                    IndexRequest indexRequest = new IndexRequest("newsriver","article");
-                                    indexRequest.source(mapper.writeValueAsString(article));
-                                    IndexResponse response = client.index(indexRequest).actionGet();
+                        if (article != null) {
 
-                                    if(response.isCreated()){
-                                        article.setId(response.getId());
-                                        String json = null;
-                                        try {
-                                            json = mapper.writeValueAsString(article);
-                                        } catch (IOException e) {
-                                            logger.fatal("Unable to serialize mill result", e);
-                                            return null;
-                                        }
-                                        producer.send(new ProducerRecord<String, String>("raw-article", html.getReferral().getNormalizeURL(), json));
-                                        MillMain.addMetric("Articles out", records.count());
+
+                            Client client = null;
+                            client = ElasticsearchPoolUtil.getInstance().getClient();
+
+                            try {
+                                IndexRequest indexRequest = new IndexRequest("newsriver", "article");
+                                indexRequest.source(mapper.writeValueAsString(article));
+                                IndexResponse response = client.index(indexRequest).actionGet();
+
+                                if (response.isCreated()) {
+                                    article.setId(response.getId());
+                                    String json = null;
+                                    try {
+                                        json = mapper.writeValueAsString(article);
+                                    } catch (IOException e) {
+                                        logger.fatal("Unable to serialize mill result", e);
+                                        return null;
                                     }
+                                    producer.send(new ProducerRecord<String, String>("raw-article", html.getReferral().getNormalizeURL(), json));
+                                    MillMain.addMetric("Articles out", records.count());
+                                }
+                            } catch (Exception e) {
+                                logger.error("Unable to save article in elasticsearch", e);
+                            } finally {
+                            }
 
+                            try {
+                                IndexRequest indexRequest = new IndexRequest("newsriver-publisher", "publisher", article.getPublisher().getDomainName());
+                                indexRequest.source(mapper.writeValueAsString(article.getPublisher()));
+                                client.index(indexRequest).actionGet();
+                            } catch (Exception e) {
+                                logger.error("Unable to save publisher", e);
+                            } finally {
+                            }
 
-                                } catch (Exception e) {
-                                    logger.error("Unable to save article in elasticsearch", e);
-                                } finally {}
                         }
 
                         return null;
