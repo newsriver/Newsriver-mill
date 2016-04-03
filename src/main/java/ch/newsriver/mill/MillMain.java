@@ -22,7 +22,7 @@ public class MillMain extends Main {
     static Mill mill;
 
     public MillMain(String[] args, Options options ){
-        super(args,options);
+        super(args,options,true);
 
 
     }

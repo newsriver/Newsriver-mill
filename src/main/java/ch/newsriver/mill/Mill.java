@@ -21,7 +21,6 @@ import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.percolate.PercolateResponse;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.Requests;
-
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -150,7 +149,7 @@ public class Mill extends BatchInterruptibleWithinExecutorPool implements Runnab
                                         logger.fatal("Unable to serialize mill result", e);
                                         return null;
                                     }
-                                    producer.send(new ProducerRecord<String, String>("raw-article", html.getReferral().getNormalizeURL(), json));
+                                    producer.send(new ProducerRecord<String, String>("raw-article", article.getUrl(), json));
                                     MillMain.addMetric("Articles out", records.count());
                                 }
                             } catch (Exception e) {
