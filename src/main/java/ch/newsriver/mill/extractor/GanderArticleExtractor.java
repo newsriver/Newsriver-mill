@@ -1,6 +1,7 @@
 package ch.newsriver.mill.extractor;
 
 import ch.newsriver.data.content.Article;
+import ch.newsriver.data.content.ImageElement;
 import ch.newsriver.data.html.HTML;
 import com.intenthq.gander.Gander;
 import com.intenthq.gander.PageInfo;
@@ -43,6 +44,14 @@ public class GanderArticleExtractor extends ArticleExtractor{
         if(pageInfo.publishDate().isDefined()){
             article.setPublishDate(simpleDateFormat.format(pageInfo.publishDate().get()));
         }
+
+        if(pageInfo.openGraphData() != null && pageInfo.openGraphData().image() !=null && pageInfo.openGraphData().image().isDefined()){
+            ImageElement image = new ImageElement();
+            image.setUrl(pageInfo.openGraphData().image().get().toString());
+            image.setPrimary(true);
+            article.getElements().add(image);
+        }
+
 
         return article;
     }

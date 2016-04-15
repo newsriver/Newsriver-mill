@@ -2,11 +2,12 @@
 
 apply plugin: 'java'
 apply plugin: 'application'
+apply plugin: 'docker'
 
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
 
-version = '0.1'
+version = '0.1.2'
 
 
 mainClassName = 'ch.newsriver.mill.MillMain'
@@ -23,7 +24,7 @@ processResources {
 
 dependencies {
     compile project(':Newsriver-lib')
-    compile 'org.elasticsearch:elasticsearch:2.2.0'
+    compile 'org.elasticsearch:elasticsearch:2.2.2'
     compile 'com.fasterxml.jackson.core:jackson-databind:2.7.2'
     compile 'com.fasterxml.jackson.core:jackson-core:2.7.2'
     compile 'com.fasterxml.jackson.core:jackson-annotations:2.7.2'
@@ -48,3 +49,35 @@ task fatJar(type: Jar) {
     from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
     with jar
 }
+
+
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'se.transmode.gradle:gradle-docker:1.2'
+    }
+}
+
+
+docker {
+    registry = 'https://docker-registry.newsriver.io:5000'
+
+}
+
+task buildimage(type: Docker, dependsOn:[clean,fatJar]) {
+    push = true
+    tagVersion = 'latest'
+    registry= 'docker-registry.newsriver.io:5000'
+    applicationName = 'newsriver-mill'
+    dockerfile = project.file('Dockerfile')
+
+    doFirst {
+        copy {
+            from jar
+            into stageDir
+        }
+    }
+}
+
