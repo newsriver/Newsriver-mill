@@ -50,7 +50,7 @@ public class Mill extends BatchInterruptibleWithinExecutorPool implements Runnab
     private static final Logger logger = LogManager.getLogger(Mill.class);
     private static final MetricsLogger metrics = MetricsLogger.getLogger(Mill.class, Main.getInstance().getInstanceName());
     private boolean run = false;
-    private static int  MAX_EXECUTUION_DURATION = 120;
+    private static int MAX_EXECUTUION_DURATION = 120;
     private int batchSize;
 
     private static final ObjectMapper mapper = new ObjectMapper();
@@ -60,7 +60,7 @@ public class Mill extends BatchInterruptibleWithinExecutorPool implements Runnab
 
     public Mill(int poolSize, int batchSize, int queueSize) throws IOException {
 
-        super(poolSize, queueSize,Duration.ofSeconds(MAX_EXECUTUION_DURATION));
+        super(poolSize, queueSize, Duration.ofSeconds(MAX_EXECUTUION_DURATION));
         this.batchSize = batchSize;
         run = true;
 
@@ -114,21 +114,22 @@ public class Mill extends BatchInterruptibleWithinExecutorPool implements Runnab
         this.shutdown();
         consumer.close();
         producer.close();
-        metrics.logMetric("shutdown");
+        metrics.logMetric("shutdown",null);
     }
 
 
     public void run() {
-        metrics.logMetric("start");
+        metrics.logMetric("start",null);
         while (run) {
             try {
                 this.waitFreeBatchExecutors(batchSize);
-                metrics.logMetric("processing batch");
+                //TODO: need to decide if keep this.
+                //metrics.logMetric("processing batch");
 
                 ConsumerRecords<String, String> records = consumer.poll(60000);
                 MillMain.addMetric("HTMLs in", records.count());
                 for (ConsumerRecord<String, String> record : records) {
-                    metrics.logMetric("processing html");
+
                     supplyAsyncInterruptExecutionWithin(() -> {
                         final HTML html;
                         try {
@@ -137,7 +138,7 @@ public class Mill extends BatchInterruptibleWithinExecutorPool implements Runnab
                             logger.error("Error deserializing BaseURL", e);
                             return null;
                         }
-
+                        metrics.logMetric("processing html", html.getReferral());
 
                         String urlHash = "";
                         try {
@@ -168,6 +169,7 @@ public class Mill extends BatchInterruptibleWithinExecutorPool implements Runnab
                         } finally {
                         }
 
+
                         if (article != null) {
                             //Check if the article already contains this
                             boolean notFound = article.getReferrals().stream().noneMatch(baseURL -> baseURL.getReferralURL().equals(html.getReferral().getReferralURL()));
@@ -180,8 +182,8 @@ public class Mill extends BatchInterruptibleWithinExecutorPool implements Runnab
                         } else {
                             GanderArticleExtractor extractor = new GanderArticleExtractor();
                             article = extractor.extract(html);
-                            if(article == null){
-                                logger.warn("Gander was unable to extract the content for:"+html.getUrl());
+                            if (article == null) {
+                                logger.warn("Gander was unable to extract the content for:" + html.getUrl());
                                 MillMain.addMetric("Articles missed", 1);
                             }
                         }
@@ -203,10 +205,11 @@ public class Mill extends BatchInterruptibleWithinExecutorPool implements Runnab
                                 }
                             }
                             try {
+
                                 IndexRequest indexRequest = new IndexRequest("newsriver", "article", urlHash);
                                 indexRequest.source(mapper.writeValueAsString(article));
                                 IndexResponse response = client.index(indexRequest).actionGet();
-                                if (response.isCreated()) {
+                                if (response != null && response.getId() != null & !response.getId().isEmpty()) {
                                     article.setId(response.getId());
                                     String json = null;
                                     try {
@@ -216,8 +219,13 @@ public class Mill extends BatchInterruptibleWithinExecutorPool implements Runnab
                                         return null;
                                     }
                                     producer.send(new ProducerRecord<String, String>("raw-article", article.getUrl(), json));
-                                    metrics.logMetric("submitted raw-article");
                                     MillMain.addMetric("Articles out", 1);
+                                    if (response.isCreated()) {
+                                        metrics.logMetric("submitted raw-article",html.getReferral());
+                                    } else {
+                                        metrics.logMetric("submitted raw-article update",html.getReferral());
+                                    }
+
                                 }
                             } catch (Exception e) {
                                 logger.error("Unable to save article in elasticsearch", e);
@@ -227,7 +235,7 @@ public class Mill extends BatchInterruptibleWithinExecutorPool implements Runnab
                             if (article.getWebsite() == null) {
                                 //The website is unknow instruct Intell to getter informarion about the website and update the article
                                 producer.send(new ProducerRecord<String, String>("website-url", articleURI.getScheme() + "://" + articleURI.getHost(), article.getId()));
-                                metrics.logMetric("submitted website-url");
+                                metrics.logMetric("submitted website-url",null);
                             }
                         }
 
