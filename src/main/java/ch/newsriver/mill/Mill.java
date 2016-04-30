@@ -8,8 +8,8 @@ import ch.newsriver.executable.poolExecution.BatchInterruptibleWithinExecutorPoo
 import ch.newsriver.mill.extractor.GanderArticleExtractor;
 import ch.newsriver.performance.MetricsLogger;
 import ch.newsriver.util.http.HttpClientPool;
-import ch.newsriver.website.WebSite;
-import ch.newsriver.website.WebSiteFactory;
+import ch.newsriver.data.website.WebSite;
+import ch.newsriver.data.website.WebSiteFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -209,7 +209,7 @@ public class Mill extends BatchInterruptibleWithinExecutorPool implements Runnab
                                 IndexRequest indexRequest = new IndexRequest("newsriver", "article", urlHash);
                                 indexRequest.source(mapper.writeValueAsString(article));
                                 IndexResponse response = client.index(indexRequest).actionGet();
-                                if (response != null && response.getId() != null & !response.getId().isEmpty()) {
+                                if (response != null && response.getId() != null && !response.getId().isEmpty()) {
                                     article.setId(response.getId());
                                     String json = null;
                                     try {
