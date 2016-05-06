@@ -3,10 +3,14 @@ package ch.newsriver.mill;
 import ch.newsriver.dao.ElasticsearchPoolUtil;
 import ch.newsriver.data.content.Article;
 import ch.newsriver.data.html.HTML;
+import ch.newsriver.data.url.BaseURL;
+import ch.newsriver.data.url.ManualURL;
 import ch.newsriver.executable.Main;
 import ch.newsriver.executable.poolExecution.BatchInterruptibleWithinExecutorPool;
 import ch.newsriver.mill.extractor.GanderArticleExtractor;
 import ch.newsriver.performance.MetricsLogger;
+import ch.newsriver.processor.Output;
+import ch.newsriver.processor.Processor;
 import ch.newsriver.util.http.HttpClientPool;
 import ch.newsriver.data.website.WebSite;
 import ch.newsriver.data.website.WebSiteFactory;
@@ -45,11 +49,12 @@ import java.util.Properties;
 /**
  * Created by eliapalme on 11/03/16.
  */
-public class Mill extends BatchInterruptibleWithinExecutorPool implements Runnable {
+public class Mill extends Processor<HTML, Article> implements Runnable {
 
     private static final Logger logger = LogManager.getLogger(Mill.class);
     private static final MetricsLogger metrics = MetricsLogger.getLogger(Mill.class, Main.getInstance().getInstanceName());
     private boolean run = false;
+    private String priorityPostFix = "";
     private static int MAX_EXECUTUION_DURATION = 120;
     private int batchSize;
 
@@ -58,9 +63,9 @@ public class Mill extends BatchInterruptibleWithinExecutorPool implements Runnab
     Producer<String, String> producer;
 
 
-    public Mill(int poolSize, int batchSize, int queueSize) throws IOException {
+    public Mill(int poolSize, int batchSize, int queueSize,boolean priority) throws IOException {
 
-        super(poolSize, queueSize, Duration.ofSeconds(MAX_EXECUTUION_DURATION));
+        super(poolSize, queueSize, Duration.ofSeconds(MAX_EXECUTUION_DURATION), priority);
         this.batchSize = batchSize;
         run = true;
 
@@ -100,9 +105,12 @@ public class Mill extends BatchInterruptibleWithinExecutorPool implements Runnab
             }
         }
 
+        if(isPriority()){
+            priorityPostFix+="-priority";
+        }
 
         consumer = new KafkaConsumer(props);
-        consumer.subscribe(Arrays.asList("raw-html"));
+        consumer.subscribe(Arrays.asList("raw-html"+priorityPostFix));
         producer = new KafkaProducer(props);
 
 
@@ -114,132 +122,66 @@ public class Mill extends BatchInterruptibleWithinExecutorPool implements Runnab
         this.shutdown();
         consumer.close();
         producer.close();
-        metrics.logMetric("shutdown",null);
+        metrics.logMetric("shutdown", null);
     }
 
 
     public void run() {
-        metrics.logMetric("start",null);
+        metrics.logMetric("start", null);
         while (run) {
             try {
                 this.waitFreeBatchExecutors(batchSize);
                 //TODO: need to decide if keep this.
                 //metrics.logMetric("processing batch");
 
-                ConsumerRecords<String, String> records = consumer.poll(60000);
+                ConsumerRecords<String, String> records;
+                if(this.isPriority()){
+                    records = consumer.poll(250);
+                }else{
+                    records = consumer.poll(60000);
+                }
+
                 MillMain.addMetric("HTMLs in", records.count());
                 for (ConsumerRecord<String, String> record : records) {
 
                     supplyAsyncInterruptExecutionWithin(() -> {
-                        final HTML html;
-                        try {
-                            html = mapper.readValue(record.value(), HTML.class);
-                        } catch (IOException e) {
-                            logger.error("Error deserializing BaseURL", e);
-                            return null;
-                        }
-                        metrics.logMetric("processing html", html.getReferral());
 
-                        String urlHash = "";
-                        try {
-                            MessageDigest digest = MessageDigest.getInstance("SHA-512");
-                            byte[] hash = digest.digest(html.getUrl().getBytes(StandardCharsets.UTF_8));
-                            urlHash = Base64.encodeBase64URLSafeString(hash);
-                        } catch (NoSuchAlgorithmException e) {
-                            logger.fatal("Unable to compute URL hash", e);
-                            return null;
-                        }
+                        Output<HTML, Article> output = this.process(record.value());
+                        if (output.isSuccess()) {
 
-                        Client client = null;
-                        client = ElasticsearchPoolUtil.getInstance().getClient();
-
-                        Article article = null;
-                        try {
-                            GetResponse response = client.prepareGet("newsriver", "article", urlHash).execute().actionGet();
-                            if (response.isExists()) {
-                                try {
-                                    article = mapper.readValue(response.getSourceAsString(), Article.class);
-                                } catch (IOException e) {
-                                    logger.fatal("Unable to deserialize article", e);
-                                    return null;
-                                }
-                            }
-                        } catch (Exception e) {
-                            logger.error("Unable to get article from elasticsearch", e);
-                        } finally {
-                        }
-
-
-                        if (article != null) {
-                            //Check if the article already contains this
-                            boolean notFound = article.getReferrals().stream().noneMatch(baseURL -> baseURL.getReferralURL().equals(html.getReferral().getReferralURL()));
-                            if (!notFound) {
-                                logger.warn("Found a duplicate referral to the same article, Newsriver-Scout should prevent this.");
+                            String json = null;
+                            try {
+                                json = mapper.writeValueAsString(output.getOutput());
+                            } catch (IOException e) {
+                                logger.fatal("Unable to serialize mill result", e);
                                 return null;
-                            } else {
-                                article.getReferrals().add(html.getReferral());
+                            }
+                            if (output.getIntput().getReferral() instanceof ManualURL) {
+                                producer.send(new ProducerRecord<String, String>("processing-status", ((ManualURL) output.getIntput().getReferral()).getSessionId(), "Content extraction completed."));
+                                producer.send(new ProducerRecord<String, String>("processing-status", ((ManualURL) output.getIntput().getReferral()).getSessionId(), json));
+                            }
+
+
+                                producer.send(new ProducerRecord<String, String>("raw-article"+priorityPostFix, output.getOutput().getUrl(), json));
+
+
+                            if (output.getOutput().getWebsite() == null) {
+                                URI articleURI = null;
+                                try {
+                                    articleURI = new URI(output.getOutput().getUrl());
+                                } catch (URISyntaxException e) {
+                                }
+                                //The website is unknow instruct Intell to getter informarion about the website and update the article
+                                producer.send(new ProducerRecord<String, String>("website-url", articleURI.getScheme() + "://" + articleURI.getHost(), output.getOutput().getId()));
+                                metrics.logMetric("submitted website-url", null);
                             }
                         } else {
-                            GanderArticleExtractor extractor = new GanderArticleExtractor();
-                            article = extractor.extract(html);
-                            if (article == null) {
-                                logger.warn("Gander was unable to extract the content for:" + html.getUrl());
-                                MillMain.addMetric("Articles missed", 1);
+                            if (output.getIntput().getReferral() instanceof ManualURL) {
+                                producer.send(new ProducerRecord<String, String>("processing-status", ((ManualURL) output.getIntput().getReferral()).getSessionId(), "Error: unable to extract main content."));
                             }
                         }
-
-                        if (article == null && html.isAlreadyFetched()) {
-                            logger.warn("An article that was supposed to have already been fetched has not been found.");
-                            return null;
-                        }
-
-                        if (article != null) {
-                            URI articleURI = null;
-                            if (article.getWebsite() == null) {
-                                try {
-                                    articleURI = new URI(article.getUrl());
-                                    WebSite webSite = WebSiteFactory.getInstance().getWebsite(articleURI.getHost().toLowerCase());
-                                    article.setWebsite(webSite);
-                                } catch (URISyntaxException e) {
-
-                                }
-                            }
-                            try {
-
-                                IndexRequest indexRequest = new IndexRequest("newsriver", "article", urlHash);
-                                indexRequest.source(mapper.writeValueAsString(article));
-                                IndexResponse response = client.index(indexRequest).actionGet();
-                                if (response != null && response.getId() != null && !response.getId().isEmpty()) {
-                                    article.setId(response.getId());
-                                    String json = null;
-                                    try {
-                                        json = mapper.writeValueAsString(article);
-                                    } catch (IOException e) {
-                                        logger.fatal("Unable to serialize mill result", e);
-                                        return null;
-                                    }
-                                    producer.send(new ProducerRecord<String, String>("raw-article", article.getUrl(), json));
-                                    MillMain.addMetric("Articles out", 1);
-                                    if (response.isCreated()) {
-                                        metrics.logMetric("submitted raw-article",html.getReferral());
-                                    } else {
-                                        metrics.logMetric("submitted raw-article update",html.getReferral());
-                                    }
-
-                                }
-                            } catch (Exception e) {
-                                logger.error("Unable to save article in elasticsearch", e);
-                            } finally {
-                            }
-
-                            if (article.getWebsite() == null) {
-                                //The website is unknow instruct Intell to getter informarion about the website and update the article
-                                producer.send(new ProducerRecord<String, String>("website-url", articleURI.getScheme() + "://" + articleURI.getHost(), article.getId()));
-                                metrics.logMetric("submitted website-url",null);
-                            }
-                        }
-
                         return null;
+
                     }, this)
                             .exceptionally(throwable -> {
                                 logger.error("HTMLFetcher unrecoverable error.", throwable);
@@ -256,6 +198,127 @@ public class Mill extends BatchInterruptibleWithinExecutorPool implements Runnab
             }
             continue;
         }
+
+
+    }
+
+    protected Output<HTML, Article> implProcess(String data) {
+
+        Output<HTML, Article> output = new Output<>();
+
+        HTML html = null;
+        Article article = null;
+
+        try {
+            html = mapper.readValue(data, HTML.class);
+        } catch (IOException e) {
+            logger.error("Error deserializing BaseURL", e);
+            output.setSuccess(false);
+            return output;
+        }
+        metrics.logMetric("processing html", html.getReferral());
+        output.setIntput(html);
+
+        String urlHash = "";
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-512");
+            byte[] hash = digest.digest(html.getUrl().getBytes(StandardCharsets.UTF_8));
+            urlHash = Base64.encodeBase64URLSafeString(hash);
+        } catch (NoSuchAlgorithmException e) {
+            logger.fatal("Unable to compute URL hash", e);
+            output.setSuccess(false);
+            return output;
+        }
+
+        Client client = null;
+        client = ElasticsearchPoolUtil.getInstance().getClient();
+
+
+        try {
+            GetResponse response = client.prepareGet("newsriver", "article", urlHash).execute().actionGet();
+            if (response.isExists()) {
+                try {
+                    article = mapper.readValue(response.getSourceAsString(), Article.class);
+                } catch (IOException e) {
+                    logger.fatal("Unable to deserialize article", e);
+                    output.setSuccess(false);
+                    return output;
+                }
+            }
+        } catch (Exception e) {
+            logger.error("Unable to get article from elasticsearch", e);
+            output.setSuccess(false);
+            return output;
+        }
+
+
+        if (article != null) {
+            //Check if the article already contains this
+            final BaseURL referral = html.getReferral();
+            if (referral != null) {
+                boolean notFound = article.getReferrals().stream().noneMatch(baseURL -> baseURL.getReferralURL() != null && baseURL.getReferralURL().equals(referral.getReferralURL()));
+                if (!notFound) {
+                    logger.warn("Found a duplicate referral to the same article, Newsriver-Scout should prevent this.");
+                } else {
+                    article.getReferrals().add(html.getReferral());
+                }
+            }
+            output.setOutput(article);
+        } else {
+            GanderArticleExtractor extractor = new GanderArticleExtractor();
+            article = extractor.extract(html);
+            if (article == null) {
+                logger.warn("Gander was unable to extract the content for:" + html.getUrl());
+                MillMain.addMetric("Articles missed", 1);
+            }
+        }
+
+        if (article == null && html.isAlreadyFetched()) {
+            logger.warn("An article that was supposed to have already been fetched has not been found.");
+            output.setSuccess(false);
+            return output;
+        }
+
+        if (article != null) {
+            URI articleURI = null;
+            if (article.getWebsite() == null) {
+                try {
+                    articleURI = new URI(article.getUrl());
+                    WebSite webSite = WebSiteFactory.getInstance().getWebsite(articleURI.getHost().toLowerCase());
+                    article.setWebsite(webSite);
+                } catch (URISyntaxException e) {
+
+                }
+            }
+            try {
+
+                IndexRequest indexRequest = new IndexRequest("newsriver", "article", urlHash);
+                indexRequest.source(mapper.writeValueAsString(article));
+                IndexResponse response = client.index(indexRequest).actionGet();
+                if (response != null && response.getId() != null && !response.getId().isEmpty()) {
+                    article.setId(response.getId());
+                    MillMain.addMetric("Articles out", 1);
+                    if (response.isCreated()) {
+                        metrics.logMetric("submitted raw-article", html.getReferral());
+                        output.setUpdate(false);
+                    } else {
+                        metrics.logMetric("submitted raw-article update", html.getReferral());
+                        output.setUpdate(true);
+                    }
+                }
+                output.setOutput(article);
+                output.setSuccess(true);
+                return output;
+
+            } catch (Exception e) {
+                logger.error("Unable to save article in elasticsearch", e);
+                output.setSuccess(false);
+                return output;
+            }
+
+        }
+        output.setSuccess(false);
+        return output;
 
 
     }
