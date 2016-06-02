@@ -11,6 +11,7 @@ import ch.newsriver.mill.extractor.GanderArticleExtractor;
 import ch.newsriver.performance.MetricsLogger;
 import ch.newsriver.processor.Output;
 import ch.newsriver.processor.Processor;
+import ch.newsriver.processor.StreamProcessor;
 import ch.newsriver.util.http.HttpClientPool;
 import ch.newsriver.data.website.WebSite;
 import ch.newsriver.data.website.WebSiteFactory;
@@ -22,6 +23,7 @@ import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.streams.KeyValue;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.get.GetResponse;
@@ -49,83 +51,46 @@ import java.util.Properties;
 /**
  * Created by eliapalme on 11/03/16.
  */
-public class Mill extends Processor<HTML, Article> implements Runnable {
+public class Mill implements StreamProcessor<HTML, Article> {
 
     private static final Logger logger = LogManager.getLogger(Mill.class);
     private static final MetricsLogger metrics = MetricsLogger.getLogger(Mill.class, Main.getInstance().getInstanceName());
-    private boolean run = false;
-    private String priorityPostFix = "";
-    private static int MAX_EXECUTUION_DURATION = 120;
-    private int batchSize;
 
     private static final ObjectMapper mapper = new ObjectMapper();
-    Consumer<String, String> consumer;
-    Producer<String, String> producer;
 
 
-    public Mill(int poolSize, int batchSize, int queueSize,boolean priority) throws IOException {
 
-        super(poolSize, queueSize, Duration.ofSeconds(MAX_EXECUTUION_DURATION), priority);
-        this.batchSize = batchSize;
-        run = true;
+    public Mill()  {
+
+
 
         try {
             HttpClientPool.initialize();
         } catch (NoSuchAlgorithmException e) {
             logger.fatal("Unable to initialize http connection pool", e);
-            run = false;
+
             return;
         } catch (KeyStoreException e) {
             logger.error("Unable to initialize http connection pool", e);
-            run = false;
+
             return;
         } catch (KeyManagementException e) {
             logger.error("Unable to initialize http connection pool", e);
-            run = false;
+
             return;
         }
 
-        Properties props = new Properties();
-        InputStream inputStream = null;
-        try {
-
-            String propFileName = "kafka.properties";
-            inputStream = Mill.class.getClassLoader().getResourceAsStream(propFileName);
-            if (inputStream != null) {
-                props.load(inputStream);
-            } else {
-                throw new FileNotFoundException("property file '" + propFileName + "' not found in the classpath");
-            }
-        } catch (Exception e) {
-            logger.error("Unable to load kafka properties", e);
-        } finally {
-            try {
-                inputStream.close();
-            } catch (Exception e) {
-            }
-        }
-
-        if(isPriority()){
-            priorityPostFix+="-priority";
-        }
-
-        consumer = new KafkaConsumer(props);
-        consumer.subscribe(Arrays.asList("raw-html"+priorityPostFix));
-        producer = new KafkaProducer(props);
-
 
     }
 
-    public void stop() {
-        run = false;
+    public void close() {
+
         HttpClientPool.shutdown();
-        this.shutdown();
-        consumer.close();
-        producer.close();
-        metrics.logMetric("shutdown", null);
+
+
     }
 
-
+    /*
     public void run() {
         metrics.logMetric("start", null);
         while (run) {
@@ -202,22 +167,15 @@ public class Mill extends Processor<HTML, Article> implements Runnable {
 
     }
 
-    protected Output<HTML, Article> implProcess(String data) {
+*/
 
-        Output<HTML, Article> output = new Output<>();
+    @Override
+    public KeyValue<String, Article> process(String key, HTML html) {
 
-        HTML html = null;
+
+
         Article article = null;
 
-        try {
-            html = mapper.readValue(data, HTML.class);
-        } catch (IOException e) {
-            logger.error("Error deserializing BaseURL", e);
-            output.setSuccess(false);
-            return output;
-        }
-        metrics.logMetric("processing html", html.getReferral());
-        output.setIntput(html);
 
         String urlHash = "";
         try {
@@ -226,8 +184,7 @@ public class Mill extends Processor<HTML, Article> implements Runnable {
             urlHash = Base64.encodeBase64URLSafeString(hash);
         } catch (NoSuchAlgorithmException e) {
             logger.fatal("Unable to compute URL hash", e);
-            output.setSuccess(false);
-            return output;
+            return null;
         }
 
         Client client = null;
@@ -241,14 +198,12 @@ public class Mill extends Processor<HTML, Article> implements Runnable {
                     article = mapper.readValue(response.getSourceAsString(), Article.class);
                 } catch (IOException e) {
                     logger.fatal("Unable to deserialize article", e);
-                    output.setSuccess(false);
-                    return output;
+                    return null;
                 }
             }
         } catch (Exception e) {
             logger.error("Unable to get article from elasticsearch", e);
-            output.setSuccess(false);
-            return output;
+            return null;
         }
 
 
@@ -263,7 +218,6 @@ public class Mill extends Processor<HTML, Article> implements Runnable {
                     article.getReferrals().add(html.getReferral());
                 }
             }
-            output.setOutput(article);
         } else {
             GanderArticleExtractor extractor = new GanderArticleExtractor();
             article = extractor.extract(html);
@@ -275,8 +229,7 @@ public class Mill extends Processor<HTML, Article> implements Runnable {
 
         if (article == null && html.isAlreadyFetched()) {
             logger.warn("An article that was supposed to have already been fetched has not been found.");
-            output.setSuccess(false);
-            return output;
+            return null;
         }
 
         if (article != null) {
@@ -300,25 +253,22 @@ public class Mill extends Processor<HTML, Article> implements Runnable {
                     MillMain.addMetric("Articles out", 1);
                     if (response.isCreated()) {
                         metrics.logMetric("submitted raw-article", html.getReferral());
-                        output.setUpdate(false);
+
                     } else {
                         metrics.logMetric("submitted raw-article update", html.getReferral());
-                        output.setUpdate(true);
+
                     }
                 }
-                output.setOutput(article);
-                output.setSuccess(true);
-                return output;
+                return new KeyValue(key,article);
 
             } catch (Exception e) {
                 logger.error("Unable to save article in elasticsearch", e);
-                output.setSuccess(false);
-                return output;
+
+                return new KeyValue(key,article);
             }
 
         }
-        output.setSuccess(false);
-        return output;
+        return null;
 
 
     }
