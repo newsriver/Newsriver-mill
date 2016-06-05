@@ -121,9 +121,9 @@ public class MillMain extends StreamExecutor implements Thread.UncaughtException
                 //producer.send(new ProducerRecord<String, String>("raw-article"+priorityPostFix, output.getOutput().getUrl(), json));
                 return output;
             } else {
-                if (output.value.getReferrals() instanceof ManualURL) {
+                //if (output.value.getReferrals() instanceof ManualURL) {
                     //producer.send(new ProducerRecord<String, String>("processing-status", ((ManualURL) output.getIntput().getReferral()).getSessionId(), "Error: unable to extract main content."));
-                }
+                //}
                 return new KeyValue(url,null);
             }
 

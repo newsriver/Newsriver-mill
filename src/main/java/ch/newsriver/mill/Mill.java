@@ -172,8 +172,8 @@ public class Mill implements StreamProcessor<HTML, Article> {
     @Override
     public KeyValue<String, Article> process(String key, HTML html) {
 
-
-
+        MillMain.addMetric("HTMLs in", 1);
+        metrics.logMetric("processing html", html.getReferral());
         Article article = null;
 
 
