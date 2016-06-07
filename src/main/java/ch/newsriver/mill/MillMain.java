@@ -38,7 +38,7 @@ public class MillMain extends MainWithPoolExecutorOptions {
 
     public void start(){
         try {
-            System.out.println("Threads pool size:" + this.getPoolSize() +"\tbatch size:"+this.getBatchSize()+"\tqueue size:"+this.getBatchSize());
+            System.out.println("Threads pool size:" + this.getPoolSize() +"\tbatch size:"+this.getBatchSize()+"\tqueue size:"+this.getQueueSize());
             mill = new Mill(this.getPoolSize(),this.getBatchSize(),this.getQueueSize(),this.isPriority());
             new Thread(mill).start();
         } catch (Exception e) {
