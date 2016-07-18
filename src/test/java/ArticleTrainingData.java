@@ -1,4 +1,4 @@
-import org.apache.spark.mllib.linalg.Vector;
+
 
 import java.io.Serializable;
 
@@ -6,7 +6,7 @@ import java.io.Serializable;
  * Created by eliapalme on 13/05/16.
  */
 public class ArticleTrainingData implements Serializable {
-
+/*
     private int languageId;
     private int categoryId;
     private String url;
@@ -52,5 +52,5 @@ public class ArticleTrainingData implements Serializable {
     public void setCategoryId(int categoryId) {
         this.categoryId = categoryId;
     }
-
+*/
 }

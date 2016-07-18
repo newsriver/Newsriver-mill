@@ -3,28 +3,7 @@ import ch.newsriver.ml.classifier.news.category.ArticleTrainingSet;
 import ch.newsriver.ml.classifier.news.category.TrainingDataHandler;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.spark.SparkConf;
-import org.apache.spark.api.java.JavaRDD;
-import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.ml.Pipeline;
-import org.apache.spark.ml.PipelineModel;
-import org.apache.spark.ml.PipelineStage;
-import org.apache.spark.ml.classification.DecisionTreeClassifier;
-import org.apache.spark.ml.classification.GBTClassifier;
-import org.apache.spark.ml.classification.RandomForestClassifier;
-import org.apache.spark.ml.evaluation.MulticlassClassificationEvaluator;
-import org.apache.spark.ml.feature.*;
-import org.apache.spark.mllib.linalg.Vector;
-import org.apache.spark.mllib.tree.DecisionTree;
-import org.apache.spark.mllib.tree.model.DecisionTreeModel;
-import org.apache.spark.sql.DataFrame;
-import org.apache.spark.sql.Row;
-import org.apache.spark.sql.RowFactory;
-import org.apache.spark.sql.SQLContext;
-import org.apache.spark.sql.types.DataTypes;
-import org.apache.spark.sql.types.Metadata;
-import org.apache.spark.sql.types.StructField;
-import org.apache.spark.sql.types.StructType;
+
 
 import java.io.File;
 import java.io.Serializable;
@@ -34,7 +13,7 @@ import java.util.*;
  * Created by eliapalme on 13/05/16.
  */
 public class TrainModelPipeline  implements Serializable{
-
+/*
     private static final ObjectMapper mapper = new ObjectMapper();
     private static JavaSparkContext jsc = null;
     private static SQLContext sqlContext = null;
@@ -141,10 +120,10 @@ public class TrainModelPipeline  implements Serializable{
                 .setLabelCol("indexedLabel")
                 .setFeaturesCol("indexedFeatures");
 
-        /*GBTClassifier gbt = new GBTClassifier()
-                .setLabelCol("indexedLabel")
-                .setFeaturesCol("indexedFeatures")
-                .setMaxIter(1);*/
+        //GBTClassifier gbt = new GBTClassifier()
+         //       .setLabelCol("indexedLabel")
+          //      .setFeaturesCol("indexedFeatures")
+           //     .setMaxIter(1);
 
 
         DecisionTreeClassifier dt = new DecisionTreeClassifier()
@@ -189,6 +168,6 @@ public class TrainModelPipeline  implements Serializable{
 
 
     }
-
+*/
 
 }

@@ -9,21 +9,7 @@ import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.intenthq.gander.text.StopWords;
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.spark.SparkConf;
-import org.apache.spark.api.java.JavaRDD;
-import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.ml.feature.StopWordsRemover;
-import org.apache.spark.ml.feature.VectorAssembler;
-import org.apache.spark.mllib.classification.NaiveBayes;
-import org.apache.spark.mllib.classification.NaiveBayesModel;
-import org.apache.spark.mllib.evaluation.MulticlassMetrics;
-import org.apache.spark.mllib.feature.HashingTF;
-import org.apache.spark.mllib.feature.IDF;
-import org.apache.spark.mllib.feature.IDFModel;
-import org.apache.spark.mllib.linalg.Vector;
-import org.apache.spark.mllib.regression.LabeledPoint;
-import org.apache.spark.sql.Row;
-import org.apache.spark.sql.RowFactory;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -45,6 +31,8 @@ import java.util.regex.Pattern;
  * Created by eliapalme on 10/05/16.
  */
 public class TestSpark {
+
+    /*
     private static final ObjectMapper mapper = new ObjectMapper();
     private static JavaSparkContext sc;
     @Before
@@ -56,16 +44,16 @@ public class TestSpark {
 
 
 
-        /* Tech feeds
+        Tech feeds
 
-        http://www.ajc.com/feeds/categories/technology/
-        http://www.washingtontimes.com/atom/headlines/culture/technology/
-        http://www.chron.com/rss/feed/AP-Technology-and-Science-266.php
-        http://technorumors.com/rss
-        http://mf.feeds.reuters.com/reuters/technologyNews
-        http://rss.nytimes.com/services/xml/rss/nyt/Technology.xml
+        //http://www.ajc.com/feeds/categories/technology/
+        //http://www.washingtontimes.com/atom/headlines/culture/technology/
+        //http://www.chron.com/rss/feed/AP-Technology-and-Science-266.php
+        //http://technorumors.com/rss
+        //http://mf.feeds.reuters.com/reuters/technologyNews
+        //http://rss.nytimes.com/services/xml/rss/nyt/Technology.xml
 
-         */
+
 
     }
 
@@ -143,14 +131,15 @@ public class TestSpark {
 
 
 
-        /*predictionLabel = tainingAndTest[1].map(point -> {
+        //predictionLabel = tainingAndTest[1].map(point -> {
 
-            double predicted = model.predict(point.features());
-            if(predicted!=point.label()) {
-                point
-            }
-            return new Tuple2(predicted,point.label());
-        });*/
+          //  double predicted = model.predict(point.features());
+           // if(predicted!=point.label()) {
+             //   point
+            //}
+            //return new Tuple2(predicted,point.label());
+        //});
+
         predictionLabel.cache();
 
 
@@ -251,7 +240,7 @@ public class TestSpark {
 
     }
 
-
+*/
 
 
 

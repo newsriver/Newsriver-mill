@@ -1,18 +1,7 @@
 import ch.newsriver.dao.JDBCPoolUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.intenthq.gander.text.StopWords;
-import org.apache.spark.SparkConf;
-import org.apache.spark.api.java.JavaRDD;
-import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.api.java.function.PairFunction;
-import org.apache.spark.mllib.classification.NaiveBayes;
-import org.apache.spark.mllib.classification.NaiveBayesModel;
-import org.apache.spark.mllib.evaluation.MulticlassMetrics;
-import org.apache.spark.mllib.feature.HashingTF;
-import org.apache.spark.mllib.feature.IDF;
-import org.apache.spark.mllib.feature.IDFModel;
-import org.apache.spark.mllib.linalg.Vector;
-import org.apache.spark.mllib.regression.LabeledPoint;
+
 import scala.Tuple2;
 
 import java.io.Serializable;
@@ -32,7 +21,7 @@ import java.util.regex.Pattern;
  * Created by eliapalme on 13/05/16.
  */
 public class TrainModel implements Serializable{
-
+/*
     private static final ObjectMapper mapper = new ObjectMapper();
     private static JavaSparkContext sc = null;
 
@@ -94,15 +83,15 @@ public class TrainModel implements Serializable{
         //JavaRDD<Vector> corpus = articles.map(article -> article.getFeatures());
         //corpus.saveAsTextFile("/Users/eliapalme/Newsriver/ML/CategoryClassification/data/test.rdd");
 
-       /* IDFModel idfModel = idf.fit(corpus);
+       // IDFModel idfModel = idf.fit(corpus);
 
         // applaying idf to features
-        articles = articles.map(article ->{
-            article.setFeatures(idfModel.transform(article.getFeatures()));
-            return article;
-        });
+       // articles = articles.map(article ->{
+      //      article.setFeatures(idfModel.transform(article.getFeatures()));
+       //     return article;
+       // });
 
-*/
+
 
         //save the new traning and test data.
         //articles.saveAsObjectFile("/Users/eliapalme/Newsriver/ML/CategoryClassification/data/articles");
@@ -196,5 +185,5 @@ public class TrainModel implements Serializable{
 
         return  data;
     }
-
+*/
 }

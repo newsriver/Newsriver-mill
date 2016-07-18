@@ -1,12 +1,16 @@
 package ch.newsriver.mill;
 
 import ch.newsriver.dao.ElasticsearchPoolUtil;
+import ch.newsriver.dao.JDBCPoolUtil;
 import ch.newsriver.data.content.Article;
 import ch.newsriver.data.html.HTML;
 import ch.newsriver.data.url.BaseURL;
 import ch.newsriver.data.url.ManualURL;
 import ch.newsriver.executable.Main;
 import ch.newsriver.executable.poolExecution.BatchInterruptibleWithinExecutorPool;
+import ch.newsriver.mill.extractor.ArticleExtractor;
+import ch.newsriver.mill.extractor.DiffBotExtendedExtractor;
+import ch.newsriver.mill.extractor.DiffBotExtractor;
 import ch.newsriver.mill.extractor.GanderArticleExtractor;
 import ch.newsriver.performance.MetricsLogger;
 import ch.newsriver.processor.Output;
@@ -39,6 +43,10 @@ import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.sql.Types;
 import java.time.Duration;
 import java.util.Arrays;
 
@@ -61,6 +69,10 @@ public class Mill extends Processor<HTML, Article> implements Runnable {
     private static final ObjectMapper mapper = new ObjectMapper();
     Consumer<String, String> consumer;
     Producer<String, String> producer;
+
+    //TODO: later replace this with a proper filter.
+    final static String argusDomains = "http://www.blick.ch/,http://www.tagesanzeiger.ch/,http://www.letemps.ch/,http://www.aargauerzeitung.ch/,http://www.suedostschweiz.ch/,http://www.nzz.ch/,http://www.srf.ch/,http://www.luzernerzeitung.ch/,http://www.20min.ch/,http://www.watson.ch/,http://www.sonntagszeitung.ch/,http://www.tagblatt.ch/,https://www.swissquote.ch/,http://www.rsi.ch/,http://www.rts.ch/,http://www.swissinfo.ch/,http://www.arcinfo.ch/,http://www.fuw.ch/,http://www.bilanz.ch/,http://www.finanzen.ch/,https://www.cash.ch/,http://www.handelszeitung.ch/,http://www.inside-it.ch/,http://www.annabelle.ch/,http://www.femina.ch/,http://www.computerworld.ch/,https://www.admin.ch/,https://www.migrosmagazin.ch/,http://www.aufeminin.com/,http://www.netzwoche.ch/,http://www.schweizer-illustrierte.ch/,http://www.boleromagazin.ch/";
+
 
 
     public Mill(int poolSize, int batchSize, int queueSize,boolean priority) throws IOException {
@@ -265,8 +277,25 @@ public class Mill extends Processor<HTML, Article> implements Runnable {
             }
             output.setOutput(article);
         } else {
-            GanderArticleExtractor extractor = new GanderArticleExtractor();
+            ArticleExtractor extractor = new GanderArticleExtractor();
             article = extractor.extract(html);
+
+            boolean argusExtendedExtraction = false;
+            try{
+                URI articleURI = new URI(html.getUrl());
+                if(argusDomains.contains(articleURI.getHost())){
+                    argusExtendedExtraction = true;
+                }
+            }catch (URISyntaxException e){
+                logger.error("Invalid article URL",e);
+            }
+
+
+            if(article==null &&  argusExtendedExtraction){
+                extractor = new DiffBotExtendedExtractor();
+                article = extractor.extract(html);
+            }
+
             if (article == null) {
                 logger.warn("Gander was unable to extract the content for:" + html.getUrl());
                 MillMain.addMetric("Articles missed", 1);
