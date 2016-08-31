@@ -1,26 +1,9 @@
-import ch.newsriver.dao.JDBCPoolUtil;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.intenthq.gander.text.StopWords;
-
-import scala.Tuple2;
-
 import java.io.Serializable;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.regex.Pattern;
 
 /**
  * Created by eliapalme on 13/05/16.
  */
-public class TrainModel implements Serializable{
+public class TrainModel implements Serializable {
 /*
     private static final ObjectMapper mapper = new ObjectMapper();
     private static JavaSparkContext sc = null;

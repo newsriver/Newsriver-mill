@@ -1,32 +1,3 @@
-import ch.newsriver.dao.JDBCPoolUtil;
-import ch.newsriver.data.content.Article;
-import ch.newsriver.data.content.ArticleFactory;
-import ch.newsriver.data.content.ArticleRequest;
-import ch.newsriver.ml.classifier.news.category.ArticleTrainingSet;
-import ch.newsriver.ml.classifier.news.category.TrainingDataHandler;
-import ch.newsriver.util.http.HttpClientPool;
-import com.fasterxml.jackson.databind.JavaType;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.intenthq.gander.text.StopWords;
-import org.apache.kafka.clients.producer.ProducerRecord;
-
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-import scala.Serializable;
-import scala.Tuple2;
-
-import java.io.File;
-import java.io.PrintWriter;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.*;
-import java.util.regex.Pattern;
-
 /**
  * Created by eliapalme on 10/05/16.
  */
@@ -241,9 +212,6 @@ public class TestSpark {
     }
 
 */
-
-
-
 
 
 }

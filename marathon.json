@@ -1,0 +1,36 @@
+{
+  "id": "/newsriver/newsriver-mill",
+  "cmd": null,
+  "cpus": 0.5,
+  "mem": 2048,
+  "disk": 0,
+  "instances": 1,
+  "container": {
+    "type": "DOCKER",
+    "volumes": [],
+    "docker": {
+      "image": "docker-registry.newsriver.io:5000/newsriver-mill:latest",
+      "network": "HOST",
+      "privileged": false,
+      "parameters": [],
+      "forcePullImage": true
+    }
+  },
+  "healthChecks": [
+    {
+      "path": "/",
+      "protocol": "HTTP",
+      "portIndex": 0,
+      "gracePeriodSeconds": 90,
+      "intervalSeconds": 60,
+      "timeoutSeconds": 20,
+      "maxConsecutiveFailures": 3,
+      "ignoreHttp1xx": false
+    }
+  ],
+  "args": [
+    "--threads=50",
+    "--batch=50",
+    "--queue=100"
+  ]
+}

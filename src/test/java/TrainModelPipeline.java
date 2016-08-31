@@ -1,18 +1,9 @@
-import ch.newsriver.data.content.Article;
-import ch.newsriver.ml.classifier.news.category.ArticleTrainingSet;
-import ch.newsriver.ml.classifier.news.category.TrainingDataHandler;
-import com.fasterxml.jackson.databind.JavaType;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-
-import java.io.File;
 import java.io.Serializable;
-import java.util.*;
 
 /**
  * Created by eliapalme on 13/05/16.
  */
-public class TrainModelPipeline  implements Serializable{
+public class TrainModelPipeline implements Serializable {
 /*
     private static final ObjectMapper mapper = new ObjectMapper();
     private static JavaSparkContext jsc = null;

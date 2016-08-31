@@ -9,7 +9,6 @@ import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 
 /**
- *
  * @author eliapalme
  */
 
@@ -18,10 +17,9 @@ import java.net.URLEncoder;
 public class DiffBotExtendedExtractor extends DiffBotExtractor {
 
 
-
     private static final String API_PATH = "http://api.diffbot.com/v3/article?discussion=false&token=";
-    private static final String API_TOKEN = "a93ce2816c0eb44c61cb7b22d31a546c";
-
+    private static final String API_TOKEN = "";
+    //private static final String API_TOKEN = "a93ce2816c0eb44c61cb7b22d31a546c";
 
 
     @Override
@@ -33,8 +31,6 @@ public class DiffBotExtendedExtractor extends DiffBotExtractor {
         request.append(URLEncoder.encode(URL, "utf-8"));
         return request.toString();
     }
-
-
 
 
 }

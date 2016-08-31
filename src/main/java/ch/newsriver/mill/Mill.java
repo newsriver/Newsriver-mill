@@ -1,24 +1,21 @@
 package ch.newsriver.mill;
 
 import ch.newsriver.dao.ElasticsearchPoolUtil;
-import ch.newsriver.dao.JDBCPoolUtil;
 import ch.newsriver.data.content.Article;
 import ch.newsriver.data.html.HTML;
 import ch.newsriver.data.url.BaseURL;
 import ch.newsriver.data.url.ManualURL;
+import ch.newsriver.data.website.WebSite;
+import ch.newsriver.data.website.WebSiteFactory;
 import ch.newsriver.executable.Main;
-import ch.newsriver.executable.poolExecution.BatchInterruptibleWithinExecutorPool;
 import ch.newsriver.mill.extractor.ArticleExtractor;
-import ch.newsriver.mill.extractor.DiffBotExtendedExtractor;
-import ch.newsriver.mill.extractor.DiffBotExtractor;
 import ch.newsriver.mill.extractor.GanderArticleExtractor;
 import ch.newsriver.performance.MetricsLogger;
 import ch.newsriver.processor.Output;
 import ch.newsriver.processor.Processor;
 import ch.newsriver.util.http.HttpClientPool;
-import ch.newsriver.data.website.WebSite;
-import ch.newsriver.data.website.WebSiteFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.commons.codec.binary.Base64;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -43,15 +40,8 @@ import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
-import java.sql.Types;
 import java.time.Duration;
 import java.util.Arrays;
-
-import org.apache.commons.codec.binary.Base64;
-
 import java.util.Properties;
 
 /**
@@ -59,23 +49,29 @@ import java.util.Properties;
  */
 public class Mill extends Processor<HTML, Article> implements Runnable {
 
-    private static final Logger logger = LogManager.getLogger(Mill.class);
-    private static final MetricsLogger metrics = MetricsLogger.getLogger(Mill.class, Main.getInstance().getInstanceName());
-    private boolean run = false;
-    private String priorityPostFix = "";
-    private static int MAX_EXECUTUION_DURATION = 120;
-    private int batchSize;
-
-    private static final ObjectMapper mapper = new ObjectMapper();
-    Consumer<String, String> consumer;
-    Producer<String, String> producer;
 
     //TODO: later replace this with a proper filter.
     final static String argusDomains = "http://www.blick.ch/,http://www.tagesanzeiger.ch/,http://www.letemps.ch/,http://www.aargauerzeitung.ch/,http://www.suedostschweiz.ch/,http://www.nzz.ch/,http://www.srf.ch/,http://www.luzernerzeitung.ch/,http://www.20min.ch/,http://www.watson.ch/,http://www.sonntagszeitung.ch/,http://www.tagblatt.ch/,https://www.swissquote.ch/,http://www.rsi.ch/,http://www.rts.ch/,http://www.swissinfo.ch/,http://www.arcinfo.ch/,http://www.fuw.ch/,http://www.bilanz.ch/,http://www.finanzen.ch/,https://www.cash.ch/,http://www.handelszeitung.ch/,http://www.inside-it.ch/,http://www.annabelle.ch/,http://www.femina.ch/,http://www.computerworld.ch/,https://www.admin.ch/,https://www.migrosmagazin.ch/,http://www.aufeminin.com/,http://www.netzwoche.ch/,http://www.schweizer-illustrierte.ch/,http://www.boleromagazin.ch/";
+    private static final Logger logger = LogManager.getLogger(Mill.class);
+    private static final MetricsLogger metrics = MetricsLogger.getLogger(Mill.class, Main.getInstance().getInstanceName());
+    private static final ObjectMapper mapper = new ObjectMapper();
+    private static final ObjectMapper articleMapper;
+    private static int MAX_EXECUTUION_DURATION = 120;
 
+    //The article is saved into ElasticSearch with a subset of the Website object fields
+    //There is no need to replicate the full object.
+    static {
+        articleMapper = new ObjectMapper();
+        articleMapper.setConfig(mapper.getSerializationConfig().withView(ElasticSearchJSONView.class));
+    }
 
+    Consumer<String, String> consumer;
+    Producer<String, String> producer;
+    private boolean run = false;
+    private String priorityPostFix = "";
+    private int batchSize;
 
-    public Mill(int poolSize, int batchSize, int queueSize,boolean priority) throws IOException {
+    public Mill(int poolSize, int batchSize, int queueSize, boolean priority) throws IOException {
 
         super(poolSize, queueSize, Duration.ofSeconds(MAX_EXECUTUION_DURATION), priority);
         this.batchSize = batchSize;
@@ -117,12 +113,12 @@ public class Mill extends Processor<HTML, Article> implements Runnable {
             }
         }
 
-        if(isPriority()){
-            priorityPostFix+="-priority";
+        if (isPriority()) {
+            priorityPostFix += "-priority";
         }
 
         consumer = new KafkaConsumer(props);
-        consumer.subscribe(Arrays.asList("raw-html"+priorityPostFix));
+        consumer.subscribe(Arrays.asList("raw-html" + priorityPostFix));
         producer = new KafkaProducer(props);
 
 
@@ -137,7 +133,6 @@ public class Mill extends Processor<HTML, Article> implements Runnable {
         metrics.logMetric("shutdown", null);
     }
 
-
     public void run() {
         metrics.logMetric("start", null);
         while (run) {
@@ -147,9 +142,9 @@ public class Mill extends Processor<HTML, Article> implements Runnable {
                 //metrics.logMetric("processing batch");
 
                 ConsumerRecords<String, String> records;
-                if(this.isPriority()){
+                if (this.isPriority()) {
                     records = consumer.poll(250);
-                }else{
+                } else {
                     records = consumer.poll(60000);
                 }
 
@@ -174,7 +169,7 @@ public class Mill extends Processor<HTML, Article> implements Runnable {
                             }
 
 
-                                producer.send(new ProducerRecord<String, String>("raw-article"+priorityPostFix, output.getOutput().getUrl(), json));
+                            producer.send(new ProducerRecord<String, String>("raw-article" + priorityPostFix, output.getOutput().getUrl(), json));
 
 
                             if (output.getOutput().getWebsite() == null) {
@@ -280,7 +275,7 @@ public class Mill extends Processor<HTML, Article> implements Runnable {
             ArticleExtractor extractor = new GanderArticleExtractor();
             article = extractor.extract(html);
 
-            boolean argusExtendedExtraction = false;
+            /*boolean argusExtendedExtraction = false;
             try{
                 URI articleURI = new URI(html.getUrl());
                 if(argusDomains.contains(articleURI.getHost())){
@@ -294,7 +289,7 @@ public class Mill extends Processor<HTML, Article> implements Runnable {
             if(article==null &&  argusExtendedExtraction){
                 extractor = new DiffBotExtendedExtractor();
                 article = extractor.extract(html);
-            }
+            }*/
 
             if (article == null) {
                 logger.warn("Gander was unable to extract the content for:" + html.getUrl());
@@ -322,7 +317,8 @@ public class Mill extends Processor<HTML, Article> implements Runnable {
             try {
 
                 IndexRequest indexRequest = new IndexRequest("newsriver", "article", urlHash);
-                indexRequest.source(mapper.writeValueAsString(article));
+
+                indexRequest.source(articleMapper.writeValueAsString(article));
                 IndexResponse response = client.index(indexRequest).actionGet();
                 if (response != null && response.getId() != null && !response.getId().isEmpty()) {
                     article.setId(response.getId());
@@ -350,6 +346,10 @@ public class Mill extends Processor<HTML, Article> implements Runnable {
         return output;
 
 
+    }
+
+    //Special view to save only a subset of the website object as nested object of the article
+    private interface ElasticSearchJSONView extends Article.JSONViews.Internal, WebSite.JSONViews.ArticleNested {
     }
 
 }
