@@ -1,6 +1,6 @@
 package ch.newsriver.mill;
 
-import ch.newsriver.dao.ElasticsearchPoolUtil;
+import ch.newsriver.dao.ElasticsearchUtil;
 import ch.newsriver.data.content.Article;
 import ch.newsriver.data.html.HTML;
 import ch.newsriver.data.url.BaseURL;
@@ -238,7 +238,7 @@ public class Mill extends Processor<HTML, Article> implements Runnable {
         }
 
         Client client = null;
-        client = ElasticsearchPoolUtil.getInstance().getClient();
+        client = ElasticsearchUtil.getInstance().getClient();
 
 
         try {

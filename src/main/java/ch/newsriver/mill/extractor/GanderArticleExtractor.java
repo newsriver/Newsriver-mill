@@ -9,19 +9,18 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.text.SimpleDateFormat;
-import java.time.format.DateTimeFormatter;
 
 /**
  * Created by eliapalme on 18/03/16.
  */
-public class GanderArticleExtractor extends ArticleExtractor{
+public class GanderArticleExtractor extends ArticleExtractor {
 
     private static final Logger logger = LogManager.getLogger(GanderArticleExtractor.class);
     private static final SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
 
-    public Article extractArticle(HTML html){
+    public Article extractArticle(HTML html) {
 
-        if(html.getLanguage() == null){
+        if (html.getLanguage() == null) {
             return null;
         }
 
@@ -30,22 +29,24 @@ public class GanderArticleExtractor extends ArticleExtractor{
             pageInfo = Gander.extract(html.getRawHTML(), html.getLanguage()).get();
 
         } catch (Exception ex) {
-            logger.error("Unable to extract article content",ex);
-            return  null;
+            logger.error("Unable to extract article content", ex);
+            return null;
         }
 
-        if(!pageInfo.cleanedText().isDefined()){
+        if (!pageInfo.cleanedText().isDefined()) {
             return null;
         }
 
         Article article = new Article();
         article.setText(pageInfo.cleanedText().get());
         article.setTitle(pageInfo.processedTitle());
-        if(pageInfo.publishDate().isDefined()){
+        article.setStructuredText(pageInfo.structuredText().get());
+
+        if (pageInfo.publishDate().isDefined()) {
             article.setPublishDate(simpleDateFormat.format(pageInfo.publishDate().get()));
         }
 
-        if(pageInfo.openGraphData() != null && pageInfo.openGraphData().image() !=null && pageInfo.openGraphData().image().isDefined()){
+        if (pageInfo.openGraphData() != null && pageInfo.openGraphData().image() != null && pageInfo.openGraphData().image().isDefined()) {
             ImageElement image = new ImageElement();
             image.setUrl(pageInfo.openGraphData().image().get().toString());
             image.setPrimary(true);
