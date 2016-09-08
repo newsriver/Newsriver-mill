@@ -12,7 +12,7 @@ node {
     stage 'checkout lib'
     checkout([$class: 'GitSCM', branches: [[name: '*/master']], doGenerateSubmoduleConfigurations: false, extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir: 'Newsriver-lib']], submoduleCfg: [], userRemoteConfigs: [[credentialsId: 'newsriver-lib', url: 'git@github.com:newsriver/Newsriver-lib.git']]])
     stage 'checkout gander'
-    checkout([$class: 'GitSCM', branches: [[name: '*/master']], doGenerateSubmoduleConfigurations: false, extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir: 'Newsriver-gander']], submoduleCfg: [], userRemoteConfigs: [[credentialsId: 'newsriver-gander', url: 'git@github.com:newsriver/Newsriver-lib.git']]])
+    checkout([$class: 'GitSCM', branches: [[name: '*/master']], doGenerateSubmoduleConfigurations: false, extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir: 'Newsriver-gander']], submoduleCfg: [], userRemoteConfigs: [[credentialsId: 'newsriver-gander', url: 'git@github.com:newsriver/gander.git']]])
 
     stage 'set-up project'
     writeFile file: 'settings.gradle', text: '''rootProject.name = \'''' + projectName + '''\' \ninclude \'Newsriver-lib\' \ninclude 'Newsriver-gander\''''
