@@ -66,7 +66,7 @@ public class TestExtractor {
     @Test
     public void testTitleExtraction() throws IOException {
         Document doc = Jsoup.parse(this.webpage.getSource(), this.webpage.getUrl());
-        TitleExtractor titleExtractor = new TitleExtractor(doc, new URL(this.webpage.getUrl()), this.webpage.getReferrals());
+        TitleExtractor titleExtractor = new TitleExtractor(doc, this.webpage.getUrl(), this.webpage.getReferral());
         assertEquals(this.webpage.getTitle(), titleExtractor.extractTitle());
     }
 

@@ -15,7 +15,13 @@ public class TestTitleExtractionStatic {
     private TitleExtractor titleExtractor = new TitleExtractor(null, null, null);
 
     @Test
-    public void testTitleNormalization() {
+    public void testTextNormalization() {
+        assertEquals(titleExtractor.normaliseString("laissé à l'école"), "LAISSE A L ECOLE");
+        assertEquals(titleExtractor.normaliseString("laissé à l’école"), "LAISSE A L ECOLE");
+    }
+
+    @Test
+    public void testApostropheNormalization() {
         assertEquals(titleExtractor.normaliseString("tèst"), "TEST");
         assertEquals(titleExtractor.normaliseString("çasa"), "CASA");
         assertEquals(titleExtractor.normaliseString("çasâ"), "CASA");
@@ -23,6 +29,7 @@ public class TestTitleExtractionStatic {
         assertEquals(titleExtractor.normaliseString("Zürich/tèst"), "ZURICH_TEST");
         assertEquals(titleExtractor.normaliseString("<tèst>"), "_TEST_");
     }
+
 
     @Test
     public void testTitleExtractionWithSymbols() {

@@ -2,8 +2,6 @@ package ch.newsriver.mill.extractor;
 
 import ch.newsriver.data.url.BaseURL;
 
-import java.util.List;
-
 /**
  * Created by eliapalme on 12/09/16.
  */
@@ -13,7 +11,7 @@ public class WebpageToTest {
     private String title;
     private String url;
     private String source;
-    private List<BaseURL> referrals;
+    private BaseURL referral;
 
     public String getTitle() {
         return title;
@@ -40,11 +38,11 @@ public class WebpageToTest {
         this.source = source;
     }
 
-    public List<BaseURL> getReferrals() {
-        return referrals;
+    public BaseURL getReferral() {
+        return referral;
     }
 
-    public void setReferrals(List<BaseURL> referrals) {
-        this.referrals = referrals;
+    public void setReferral(BaseURL referral) {
+        this.referral = referral;
     }
 }

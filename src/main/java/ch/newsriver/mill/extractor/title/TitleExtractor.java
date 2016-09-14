@@ -4,9 +4,12 @@ import ch.newsriver.data.url.BaseURL;
 import ch.newsriver.data.url.FeedURL;
 import ch.newsriver.mill.extractor.metadata.MetaDataExtractor;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.text.Normalizer;
 import java.util.ArrayList;
@@ -23,56 +26,72 @@ import java.util.stream.Collectors;
  * Created by eliapalme on 11/09/16.
  */
 public class TitleExtractor {
+    private static final Logger logger = LogManager.getLogger(TitleExtractor.class);
 
-    private static final float MIN_TITLE_PERMUTATION_LENGTH = 0.25f;
-    private static String[][] UMLAUT_REPLACEMENTS = {{"Ä", "Ae"}, {"Ü", "Ue"}, {"Ö", "Oe"}, {"ä", "ae"}, {"ü", "ue"}, {"ö", "oe"}, {"ß", "ss"}};
+
+    private static final float MIN_TITLE_PERMUTATION_LENGTH = 0.33f; //the higher the less permutations are generated
+    private static String[][] REPLACEMENTS = {{"’", "'"}, {"Ä", "Ae"}, {"Ü", "Ue"}, {"Ö", "Oe"}, {"ä", "ae"}, {"ü", "ue"}, {"ö", "oe"}, {"ß", "ss"}};
     private Document doc;
-    private List<BaseURL> referrals;
-    private URL url;
+    private BaseURL referral;
+    private String url;
 
-    public TitleExtractor(Document doc, URL url, List<BaseURL> referrals) {
+    public TitleExtractor(Document doc, String url, BaseURL referral) {
         this.doc = doc;
         this.url = url;
-        this.referrals = referrals;
+        this.referral = referral;
     }
 
     public String extractTitle() {
 
-
         Set<String> mainTitleCandidates = new HashSet<>();
-
-        mainTitleCandidates.add(normaliseHTMLText(doc.select("title").text()));
-        Iterator<Element> h1s = doc.select("h1").iterator();
-        while (h1s.hasNext()) {
-            mainTitleCandidates.add(normaliseHTMLText(h1s.next().text()));
-        }
-
-
         Map<String, Integer> alternatives = new HashMap<>();
 
-        Iterator<Element> hTags = doc.select("h1, h2").iterator();
-        while (hTags.hasNext()) {
-            alternatives.put(hTags.next().text(), 1);
-        }
-        hTags = doc.select("h3, h4, h5, h6").iterator();
-        while (hTags.hasNext()) {
-            alternatives.put(hTags.next().text(), 1);
+        //Find primary title
+
+        if (doc.select("title") != null && doc.select("title").hasText()) {
+            String titleTag = normaliseHTMLText(doc.select("title").text());
+            //add the tile to both main and alternatives titles
+            //it is added to alternative as well because he is an alternative to other main candidates
+            mainTitleCandidates.add(titleTag);
+            alternatives.put(titleTag, 1);
         }
 
+
+        Iterator<Element> h1s = doc.select("h1").iterator();
+        while (h1s.hasNext()) {
+            String h1Tag = normaliseHTMLText(h1s.next().text());
+            mainTitleCandidates.add(h1Tag);
+            alternatives.put(h1Tag, 1);
+        }
+
+
+        //Find alternative titles permutations
+
+        //add all H tags
+        Iterator<Element> hTags = doc.select("h2,h3, h4, h5, h6").iterator();
+        while (hTags.hasNext()) {
+            alternatives.put(normaliseHTMLText(hTags.next().text()), 1);
+        }
+
+        //add all meta titles
         MetaDataExtractor metaDataExtractor = new MetaDataExtractor(doc);
         metaDataExtractor.extractMetaOpenGraph().getTitle().map(t -> alternatives.put(normaliseHTMLText(t), 1));
         metaDataExtractor.extractMetaTwitter().getTitle().map(t -> alternatives.put(normaliseHTMLText(t), 1));
 
-        alternatives.put(url.getPath(), 1);
-        alternatives.put(normaliseHTMLText(doc.select("title").text()), 1);
+        //add URL path
+        try {
+            alternatives.put(new URL(url).getPath(), 1);
+        } catch (MalformedURLException e) {
+            logger.error("Invalid article URL", e);
+        }
 
-        if (referrals != null) {
-            for (BaseURL url : referrals) {
-                if (url instanceof FeedURL) {
-                    //referral titles are very important, give twice the weight
-                    alternatives.put(normaliseHTMLText(((FeedURL) url).getTitle()), 2);
-                }
+        //add all referrals titles or link text
+        if (referral != null) {
+            if (referral instanceof FeedURL) {
+                //referral titles are very important, give twice the weight
+                alternatives.put(normaliseHTMLText(((FeedURL) referral).getTitle()), 2);
             }
+            //TODO: consider adding LinkURL text as altrenative title
         }
 
 
@@ -90,18 +109,23 @@ public class TitleExtractor {
     }
 
     protected String normaliseHTMLText(String text) {
+        if (text == null) return null;
         return text.replaceAll("\\u00a0+", " ").replaceAll("[\\s]+", " ");
     }
 
     protected String normaliseString(String string) {
-        for (int i = 0; i < UMLAUT_REPLACEMENTS.length; i++) {
-            string = string.replaceAll(UMLAUT_REPLACEMENTS[i][0], UMLAUT_REPLACEMENTS[i][1]);
+
+        //replace special chars with normalise version
+        //for example ß needs to be converted to ss, doing so will add one char to the string an make
+        //sure it matches with version of the same text that are not normalised.
+        for (int i = 0; i < REPLACEMENTS.length; i++) {
+            string = string.replaceAll(REPLACEMENTS[i][0], REPLACEMENTS[i][1]);
         }
         return Normalizer.normalize(string, Normalizer.Form.NFD).replaceAll("[^\\p{ASCII}]", "").toUpperCase().replaceAll("[^\\p{L}]+", " ");
     }
 
 
-    public PermutationScore processTitle(String refTitle, Map<String, Integer> alternatives) {
+    protected PermutationScore processTitle(String refTitle, Map<String, Integer> alternatives) {
 
 
         Map<String, Integer> permutationScores = new HashMap<>();
