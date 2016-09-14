@@ -53,7 +53,7 @@ public class TitleExtractor {
             //add the tile to both main and alternatives titles
             //it is added to alternative as well because he is an alternative to other main candidates
             mainTitleCandidates.add(titleTag);
-            alternatives.put(titleTag, 1);
+            setOrIncMap(alternatives, titleTag, 1);
         }
 
 
@@ -61,7 +61,18 @@ public class TitleExtractor {
         while (h1s.hasNext()) {
             String h1Tag = normaliseHTMLText(h1s.next().text());
             mainTitleCandidates.add(h1Tag);
-            alternatives.put(h1Tag, 1);
+            setOrIncMap(alternatives, h1Tag, 1);
+        }
+
+        //add all referrals titles or link text
+        if (referral != null) {
+            if (referral instanceof FeedURL) {
+                String referralTitle = normaliseHTMLText(((FeedURL) referral).getTitle());
+                mainTitleCandidates.add(referralTitle);
+                //referral titles are very important, give twice the weight
+                setOrIncMap(alternatives, referralTitle, 1);
+            }
+            //TODO: consider adding LinkURL text as altrenative title
         }
 
 
@@ -70,43 +81,47 @@ public class TitleExtractor {
         //add all H tags
         Iterator<Element> hTags = doc.select("h2,h3, h4, h5, h6").iterator();
         while (hTags.hasNext()) {
-            alternatives.put(normaliseHTMLText(hTags.next().text()), 1);
+            setOrIncMap(alternatives, normaliseHTMLText(hTags.next().text()), 1);
         }
 
         //add all meta titles
         MetaDataExtractor metaDataExtractor = new MetaDataExtractor(doc);
-        metaDataExtractor.extractMetaOpenGraph().getTitle().map(t -> alternatives.put(normaliseHTMLText(t), 1));
-        metaDataExtractor.extractMetaTwitter().getTitle().map(t -> alternatives.put(normaliseHTMLText(t), 1));
+        metaDataExtractor.extractMetaOpenGraph().getTitle().ifPresent(t -> setOrIncMap(alternatives, normaliseHTMLText(t), 1));
+        metaDataExtractor.extractMetaTwitter().getTitle().ifPresent(t -> setOrIncMap(alternatives, normaliseHTMLText(t), 1));
 
         //add URL path
         try {
-            alternatives.put(new URL(url).getPath(), 1);
+            setOrIncMap(alternatives, new URL(url).getPath(), 1);
         } catch (MalformedURLException e) {
             logger.error("Invalid article URL", e);
         }
 
-        //add all referrals titles or link text
-        if (referral != null) {
-            if (referral instanceof FeedURL) {
-                //referral titles are very important, give twice the weight
-                alternatives.put(normaliseHTMLText(((FeedURL) referral).getTitle()), 2);
-            }
-            //TODO: consider adding LinkURL text as altrenative title
-        }
-
-
-        String title = "";
-        int score = 0;
+        //Sum up all candidates
+        Map<String, Integer> candidates = new HashMap<>();
         for (String mainCandidate : mainTitleCandidates) {
             PermutationScore permutation = processTitle(mainCandidate, alternatives);
-            if (permutation.score > score) {
-                title = permutation.getPermutation();
-                score = permutation.getScore();
-            }
+            setOrIncMap(candidates, permutation.getPermutation(), permutation.getScore());
         }
+
+        //Sort cnadidates by appearance time if equal take the smaller version
+        String title = candidates.entrySet()
+                .stream()
+                .sorted((left, right) -> {
+                    if (left.getValue() == right.getValue()) {
+                        return Long.compare(right.getKey().length(), left.getKey().length());
+                    } else {
+                        return Long.compare(right.getValue(), left.getValue());
+                    }
+                }).findFirst().get().getKey();
+
 
         return title;
     }
+
+    private void setOrIncMap(Map<String, Integer> map, String key, int value) {
+        map.put(key, map.getOrDefault(key, 0) + value);
+    }
+
 
     protected String normaliseHTMLText(String text) {
         if (text == null) return null;

@@ -39,6 +39,7 @@ public class TestExtractor {
     public static Collection getWebPages() throws IOException {
         Collection<Object[]> webPages = new ArrayList<>();
 
+
         ClassLoader cl = TestExtractor.class.getClassLoader();
         ResourcePatternResolver resolver = new PathMatchingResourcePatternResolver(cl);
         Resource[] resources = resolver.getResources("classpath*:/**/extractor/*.json");
