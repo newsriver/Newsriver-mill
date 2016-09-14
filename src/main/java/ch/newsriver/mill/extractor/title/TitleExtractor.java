@@ -150,9 +150,9 @@ public class TitleExtractor {
         for (String referencePermutation : stringPermutations(refTitle, false)) {
 
             //remove undesired leading and tail chars from the referencePermutation
-            referencePermutation = StringUtils.strip(referencePermutation, " –_");
+            referencePermutation = StringUtils.strip(referencePermutation, " –_-|:");
             //normalise text and strip it
-            String normalised = StringUtils.strip(normaliseString(referencePermutation), " –_");
+            String normalised = StringUtils.strip(normaliseString(referencePermutation), " –_-|:");
 
             //if keys collide keep the longer version
             if (!(originalTitleMap.containsKey(normalised) &&
