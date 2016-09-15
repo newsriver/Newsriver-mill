@@ -214,7 +214,11 @@ public class TitleExtractor {
             //Sort permutations by str length desc to keep the longest ones
             @Override
             public int compare(String left, String right) {
-                return Long.compare(right.length(), left.length());
+                int compare = Long.compare(right.length(), left.length());
+                if (compare == 0) {
+                    return left.compareTo(right);
+                }
+                return compare;
             }
         });
         String[] keywords = title.split("((?<=[^\\p{L}])|(?=[^\\p{L}]))");
