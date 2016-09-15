@@ -13,6 +13,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.text.Normalizer;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -20,6 +21,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.SortedSet;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 /**
@@ -30,6 +33,7 @@ public class TitleExtractor {
 
 
     private static final float MIN_TITLE_PERMUTATION_LENGTH = 0.33f; //the higher the less permutations are generated
+    private static final int MAX_PERMUTATIONS = 25; //limit number of permutations to analise
     private static String[][] REPLACEMENTS = {{"’", "'"}, {"Ä", "Ae"}, {"Ü", "Ue"}, {"Ö", "Oe"}, {"ä", "ae"}, {"ü", "ue"}, {"ö", "oe"}, {"ß", "ss"}};
     private Document doc;
     private BaseURL referral;
@@ -206,7 +210,17 @@ public class TitleExtractor {
 
 
     protected Set<String> stringPermutations(String title, boolean normalise) {
-        Set<String> permutations = new HashSet<>();
+        SortedSet<String> permutations = new TreeSet<>(new Comparator<String>() {
+            //Sort permutations by str length desc to keep the longest ones
+            @Override
+            public int compare(String left, String right) {
+                int compare = Long.compare(right.length(), left.length());
+                if (compare == 0) {
+                    return left.compareTo(right);
+                }
+                return compare;
+            }
+        });
         String[] keywords = title.split("((?<=[^\\p{L}])|(?=[^\\p{L}]))");
 
         for (int i = 0; i < keywords.length; i++) {
@@ -221,6 +235,9 @@ public class TitleExtractor {
                     } else {
                         permutations.add(StringUtils.strip(permutation));
                     }
+                }
+                if (permutations.size() > MAX_PERMUTATIONS) {
+                    permutations.remove(permutations.last());
                 }
             }
         }
