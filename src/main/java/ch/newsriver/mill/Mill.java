@@ -183,7 +183,11 @@ public class Mill extends Processor<HTML, Article> implements Runnable {
                                 metrics.logMetric("submitted website-url", null);
                             }
                         } else {
-                            if (output.getIntput().getReferral() instanceof ManualURL) {
+                            if (output.getIntput() == null) {
+                                logger.error("Input is null");
+                            }else if (output.getIntput().getReferral() == null) {
+                                logger.error("referral is null");
+                            }else if (output.getIntput().getReferral() instanceof ManualURL) {
                                 producer.send(new ProducerRecord<String, String>("processing-status", ((ManualURL) output.getIntput().getReferral()).getSessionId(), "Error: unable to extract main content."));
                             }
                         }

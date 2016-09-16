@@ -33,7 +33,7 @@ public class TitleExtractor {
 
 
     private static final float MIN_TITLE_PERMUTATION_LENGTH = 0.33f; //the higher the less permutations are generated
-    private static final int MAX_PERMUTATIONS = 25; //limit number of permutations to analise
+    private static final int MAX_PERMUTATIONS = 50; //limit number of permutations to analise
     private static String[][] REPLACEMENTS = {{"’", "'"}, {"Ä", "Ae"}, {"Ü", "Ue"}, {"Ö", "Oe"}, {"ä", "ae"}, {"ü", "ue"}, {"ö", "oe"}, {"ß", "ss"}};
     private Document doc;
     private BaseURL referral;
@@ -56,25 +56,33 @@ public class TitleExtractor {
             String titleTag = normaliseHTMLText(doc.select("title").text());
             //add the tile to both main and alternatives titles
             //it is added to alternative as well because he is an alternative to other main candidates
-            mainTitleCandidates.add(titleTag);
-            setOrIncMap(alternatives, titleTag, 1);
+            if(!titleTag.isEmpty()) {
+                mainTitleCandidates.add(titleTag);
+                setOrIncMap(alternatives, titleTag, 1);
+            }
         }
 
 
         Iterator<Element> h1s = doc.select("h1").iterator();
         while (h1s.hasNext()) {
             String h1Tag = normaliseHTMLText(h1s.next().text());
-            mainTitleCandidates.add(h1Tag);
-            setOrIncMap(alternatives, h1Tag, 1);
+            if(!h1Tag.isEmpty()) {
+                mainTitleCandidates.add(h1Tag);
+                setOrIncMap(alternatives, h1Tag, 1);
+            }
+
         }
 
         //add all referrals titles or link text
         if (referral != null) {
             if (referral instanceof FeedURL) {
                 String referralTitle = normaliseHTMLText(((FeedURL) referral).getTitle());
-                mainTitleCandidates.add(referralTitle);
-                //referral titles are very important, give twice the weight
-                setOrIncMap(alternatives, referralTitle, 1);
+                if(!referralTitle.isEmpty()) {
+                    mainTitleCandidates.add(referralTitle);
+                    //referral titles are very important, give twice the weight
+                    setOrIncMap(alternatives, referralTitle, 1);
+                }
+
             }
             //TODO: consider adding LinkURL text as altrenative title
         }
