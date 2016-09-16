@@ -292,7 +292,8 @@ public class Mill extends Processor<HTML, Article> implements Runnable {
             }*/
 
             if (article == null) {
-                logger.warn("Gander was unable to extract the content for:" + html.getUrl());
+                logger.warn("Gander was unable to extract the content");
+                metrics.logMetric("unable to extract content",html.getReferral());
                 MillMain.addMetric("Articles missed", 1);
             }
         }
