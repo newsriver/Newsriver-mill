@@ -2,9 +2,14 @@ package ch.newsriver.mill.extractor;
 
 import ch.newsriver.mill.extractor.title.TitleExtractor;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.intenthq.gander.Gander;
+import com.intenthq.gander.PageInfo;
 import org.apache.commons.io.IOUtils;
+import org.elasticsearch.common.joda.FormatDateTimeFormatter;
+import org.elasticsearch.index.mapper.core.DateFieldMapper;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -16,6 +21,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 
@@ -29,6 +35,10 @@ public class TestExtractor {
 
     private static final ObjectMapper mapper = new ObjectMapper();
     private WebpageToTest webpage;
+    private Document doc;
+    private static final SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
+    FormatDateTimeFormatter esDateTimeFormatter = DateFieldMapper.Defaults.DATE_TIME_FORMATTER;
+
 
 
     public TestExtractor(WebpageToTest webPage, String hostname) {
@@ -63,13 +73,30 @@ public class TestExtractor {
         return source;
     }
 
+    @Before
+    public void  parseHTMLDoc(){
+        doc = Jsoup.parse(this.webpage.getSource(), this.webpage.getUrl());
+    }
 
     @Test
     public void testTitleExtraction() throws IOException {
-        Document doc = Jsoup.parse(this.webpage.getSource(), this.webpage.getUrl());
-        TitleExtractor titleExtractor = new TitleExtractor(doc, this.webpage.getUrl(), this.webpage.getReferral());
+        TitleExtractor titleExtractor = new TitleExtractor(this.doc, this.webpage.getUrl(), this.webpage.getReferral());
         assertEquals(this.webpage.getTitle(), titleExtractor.extractTitle());
     }
 
+    @Test
+    public void testPublicationDateExtraction() {
+        if(this.webpage.getPublishDate()!=null) {
+            PageInfo pageInfo = Gander.extract(this.webpage.getSource(),"all").get();
+            String date = simpleDateFormat.format(pageInfo.publishDate().get());
+            try{
+                esDateTimeFormatter.parser().parseMillis(date);
+            }catch (IllegalArgumentException e){
+               date = null;
+            }
+            assertEquals(this.webpage.getPublishDate(), date);
+
+        }
+    }
 
 }

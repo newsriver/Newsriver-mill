@@ -7,7 +7,10 @@ import com.intenthq.gander.Gander;
 import com.intenthq.gander.PageInfo;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.common.joda.FormatDateTimeFormatter;
+import org.elasticsearch.index.mapper.core.DateFieldMapper;
 
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 
 /**
@@ -17,6 +20,8 @@ public class GanderArticleExtractor extends ArticleExtractor {
 
     private static final Logger logger = LogManager.getLogger(GanderArticleExtractor.class);
     private static final SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
+    FormatDateTimeFormatter esDateTimeFormatter = DateFieldMapper.Defaults.DATE_TIME_FORMATTER;
+
 
     public Article extractArticle(HTML html) {
 
@@ -44,6 +49,13 @@ public class GanderArticleExtractor extends ArticleExtractor {
 
         if (pageInfo.publishDate().isDefined()) {
             article.setPublishDate(simpleDateFormat.format(pageInfo.publishDate().get()));
+            //test if date is parsable, this methods avoids to pass invalid dates to ES
+            try{
+                esDateTimeFormatter.parser().parseMillis(article.getPublishDate());
+            }catch (IllegalArgumentException e){
+                logger.error("Publish date is invalid");
+                article.setPublishDate(null);
+            }
         }
 
         if (pageInfo.openGraphData() != null && pageInfo.openGraphData().image() != null && pageInfo.openGraphData().image().isDefined()) {
