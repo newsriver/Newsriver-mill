@@ -2,6 +2,7 @@ package ch.newsriver.mill;
 
 import ch.newsriver.dao.ElasticsearchUtil;
 import ch.newsriver.data.content.Article;
+import ch.newsriver.data.content.ArticleFactory;
 import ch.newsriver.data.html.HTML;
 import ch.newsriver.data.url.BaseURL;
 import ch.newsriver.data.url.ManualURL;
@@ -26,7 +27,6 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.get.GetResponse;
-import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.client.Client;
 
@@ -55,15 +55,8 @@ public class Mill extends Processor<HTML, Article> implements Runnable {
     private static final Logger logger = LogManager.getLogger(Mill.class);
     private static final MetricsLogger metrics = MetricsLogger.getLogger(Mill.class, Main.getInstance().getInstanceName());
     private static final ObjectMapper mapper = new ObjectMapper();
-    private static final ObjectMapper articleMapper;
     private static int MAX_EXECUTUION_DURATION = 120;
 
-    //The article is saved into ElasticSearch with a subset of the Website object fields
-    //There is no need to replicate the full object.
-    static {
-        articleMapper = new ObjectMapper();
-        articleMapper.setConfig(mapper.getSerializationConfig().withView(ElasticSearchJSONView.class));
-    }
 
     Consumer<String, String> consumer;
     Producer<String, String> producer;
@@ -320,11 +313,7 @@ public class Mill extends Processor<HTML, Article> implements Runnable {
                 }
             }
             try {
-
-                IndexRequest indexRequest = new IndexRequest("newsriver", "article", urlHash);
-
-                indexRequest.source(articleMapper.writeValueAsString(article));
-                IndexResponse response = client.index(indexRequest).actionGet();
+                IndexResponse response= ArticleFactory.getInstance().saveArticle(article,urlHash);
                 if (response != null && response.getId() != null && !response.getId().isEmpty()) {
                     article.setId(response.getId());
                     MillMain.addMetric("Articles out", 1);
@@ -351,10 +340,6 @@ public class Mill extends Processor<HTML, Article> implements Runnable {
         return output;
 
 
-    }
-
-    //Special view to save only a subset of the website object as nested object of the article
-    private interface ElasticSearchJSONView extends Article.JSONViews.Internal, WebSite.JSONViews.ArticleNested {
     }
 
 }
