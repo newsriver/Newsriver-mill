@@ -176,11 +176,7 @@ public class Mill extends Processor<HTML, Article> implements Runnable {
                                 metrics.logMetric("submitted website-url", null);
                             }
                         } else {
-                            if (output.getIntput() == null) {
-                                logger.error("Input is null");
-                            }else if (output.getIntput().getReferral() == null) {
-                                logger.error("referral is null");
-                            }else if (output.getIntput().getReferral() instanceof ManualURL) {
+                            if (output.getIntput().getReferral() instanceof ManualURL) {
                                 producer.send(new ProducerRecord<String, String>("processing-status", ((ManualURL) output.getIntput().getReferral()).getSessionId(), "Error: unable to extract main content."));
                             }
                         }
@@ -261,10 +257,14 @@ public class Mill extends Processor<HTML, Article> implements Runnable {
             final BaseURL referral = html.getReferral();
             if (referral != null) {
                 boolean notFound = article.getReferrals().stream().noneMatch(baseURL -> baseURL.getReferralURL() != null && baseURL.getReferralURL().equals(referral.getReferralURL()));
-                if (!notFound) {
-                    logger.warn("Found a duplicate referral to the same article, Newsriver-Scout should prevent this.");
-                } else {
+                if (notFound) {
                     article.getReferrals().add(html.getReferral());
+                } else {
+                    logger.warn("Found a duplicate referral to the same article, Newsriver-Scout should prevent this.");
+                    //Do not propagate this article further
+                    //TODO: eventually if we plan to update articles or their referral we should not process the article
+                    output.setSuccess(false);
+                    return output;
                 }
             }
             output.setOutput(article);
@@ -290,7 +290,7 @@ public class Mill extends Processor<HTML, Article> implements Runnable {
 
             if (article == null) {
                 logger.warn("Gander was unable to extract the content");
-                metrics.logMetric("unable to extract content",html.getReferral());
+                metrics.logMetric("unable to extract content", html.getReferral());
                 MillMain.addMetric("Articles missed", 1);
             }
         }
@@ -313,7 +313,7 @@ public class Mill extends Processor<HTML, Article> implements Runnable {
                 }
             }
             try {
-                IndexResponse response= ArticleFactory.getInstance().saveArticle(article,urlHash);
+                IndexResponse response = ArticleFactory.getInstance().saveArticle(article, urlHash);
                 if (response != null && response.getId() != null && !response.getId().isEmpty()) {
                     article.setId(response.getId());
                     MillMain.addMetric("Articles out", 1);
