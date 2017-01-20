@@ -2,17 +2,17 @@
 
 def marathonAppId = '/newsriver/newsriver-mill'
 def projectName = 'newsriver-mill'
-def dockerRegistry = 'docker-registry.newsriver.io:5000'
-def marathonURL = 'http://46.4.71.105:8080/'
+def dockerRegistry = 'docker-registry-v2.newsriver.io:5000'
+def marathonURL = 'http://leader.mesos:8080/'
 
 node {
 
     stage 'checkout project'
     checkout scm
     stage 'checkout lib'
-    checkout([$class: 'GitSCM', branches: [[name: '*/master']], doGenerateSubmoduleConfigurations: false, extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir: 'Newsriver-lib']], submoduleCfg: [], userRemoteConfigs: [[credentialsId: 'newsriver-lib', url: 'git@github.com:newsriver/Newsriver-lib.git']]])
+    checkout([$class: 'GitSCM', branches: [[name: '*/dc']], doGenerateSubmoduleConfigurations: false, extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir: 'Newsriver-lib']], submoduleCfg: [], userRemoteConfigs: [[credentialsId: 'github', url: 'https://github.com/newsriver/Newsriver-lib.git']]])
     stage 'checkout gander'
-    checkout([$class: 'GitSCM', branches: [[name: '*/master']], doGenerateSubmoduleConfigurations: false, extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir: 'Newsriver-gander']], submoduleCfg: [], userRemoteConfigs: [[credentialsId: 'newsriver-gander', url: 'git@github.com:newsriver/gander.git']]])
+    checkout([$class: 'GitSCM', branches: [[name: '*/master']], doGenerateSubmoduleConfigurations: false, extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir: 'Newsriver-gander']], submoduleCfg: [], userRemoteConfigs: [[credentialsId: 'github', url: 'https://github.com/newsriver/gander.git']]])
 
     stage 'set-up project'
     writeFile file: 'settings.gradle', text: '''rootProject.name = \'''' + projectName + '''\' \ninclude \'Newsriver-lib\' \ninclude 'Newsriver-gander\''''
@@ -24,6 +24,11 @@ node {
     sh 'gradle test'
 
     if (env.BRANCH_NAME == "master") {
+        deployDockerImage(projectName, dockerRegistry)
+        restartDockerContainer(marathonAppId, projectName, dockerRegistry, marathonURL)
+    }
+
+    if (env.BRANCH_NAME == "dc") {
         deployDockerImage(projectName, dockerRegistry)
         restartDockerContainer(marathonAppId, projectName, dockerRegistry, marathonURL)
     }
