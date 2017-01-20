@@ -32,5 +32,8 @@
     "--threads=50",
     "--batch=50",
     "--queue=100"
+  ],
+  "acceptedResourceRoles": [
+    "slave_public"
   ]
 }
