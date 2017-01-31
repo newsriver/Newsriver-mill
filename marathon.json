@@ -2,14 +2,14 @@
   "id": "/newsriver/newsriver-mill",
   "cmd": null,
   "cpus": 0.5,
-  "mem": 2048,
+  "mem": 768,
   "disk": 0,
   "instances": 1,
   "container": {
     "type": "DOCKER",
     "volumes": [],
     "docker": {
-      "image": "docker-registry.newsriver.io:5000/newsriver-mill:latest",
+      "image": "docker-registry-v2.newsriver.io:5000/newsriver-mill:latest",
       "network": "HOST",
       "privileged": false,
       "parameters": [],
@@ -32,5 +32,8 @@
     "--threads=50",
     "--batch=50",
     "--queue=100"
+  ],
+  "acceptedResourceRoles": [
+    "slave_public"
   ]
 }

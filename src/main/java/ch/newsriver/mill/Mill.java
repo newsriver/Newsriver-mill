@@ -29,6 +29,7 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.client.Client;
+import org.elasticsearch.rest.RestStatus;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -317,7 +318,7 @@ public class Mill extends Processor<HTML, Article> implements Runnable {
                 if (response != null && response.getId() != null && !response.getId().isEmpty()) {
                     article.setId(response.getId());
                     MillMain.addMetric("Articles out", 1);
-                    if (response.isCreated()) {
+                    if (response.status() == RestStatus.CREATED) {
                         metrics.logMetric("submitted raw-article", html.getReferral());
                         output.setUpdate(false);
                     } else {

@@ -6,7 +6,7 @@ import com.intenthq.gander.Gander;
 import com.intenthq.gander.PageInfo;
 import org.apache.commons.io.IOUtils;
 import org.elasticsearch.common.joda.FormatDateTimeFormatter;
-import org.elasticsearch.index.mapper.core.DateFieldMapper;
+import org.elasticsearch.index.mapper.DateFieldMapper;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.junit.Before;
@@ -34,11 +34,10 @@ import static org.junit.Assert.assertEquals;
 public class TestExtractor {
 
     private static final ObjectMapper mapper = new ObjectMapper();
+    private static final SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
+    FormatDateTimeFormatter esDateTimeFormatter = DateFieldMapper.DEFAULT_DATE_TIME_FORMATTER;
     private WebpageToTest webpage;
     private Document doc;
-    private static final SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
-    FormatDateTimeFormatter esDateTimeFormatter = DateFieldMapper.Defaults.DATE_TIME_FORMATTER;
-
 
 
     public TestExtractor(WebpageToTest webPage, String hostname) {
@@ -74,7 +73,7 @@ public class TestExtractor {
     }
 
     @Before
-    public void  parseHTMLDoc(){
+    public void parseHTMLDoc() {
         doc = Jsoup.parse(this.webpage.getSource(), this.webpage.getUrl());
     }
 
@@ -86,13 +85,13 @@ public class TestExtractor {
 
     @Test
     public void testPublicationDateExtraction() {
-        if(this.webpage.getPublishDate()!=null) {
-            PageInfo pageInfo = Gander.extract(this.webpage.getSource(),"all").get();
+        if (this.webpage.getPublishDate() != null) {
+            PageInfo pageInfo = Gander.extract(this.webpage.getSource(), "all").get();
             String date = simpleDateFormat.format(pageInfo.publishDate().get());
-            try{
+            try {
                 esDateTimeFormatter.parser().parseMillis(date);
-            }catch (IllegalArgumentException e){
-               date = null;
+            } catch (IllegalArgumentException e) {
+                date = null;
             }
             assertEquals(this.webpage.getPublishDate(), date);
 
