@@ -10,7 +10,7 @@ node {
     stage 'checkout project'
     checkout scm
     stage 'checkout lib'
-    checkout([$class: 'GitSCM', branches: [[name: '*/dc']], doGenerateSubmoduleConfigurations: false, extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir: 'Newsriver-lib']], submoduleCfg: [], userRemoteConfigs: [[credentialsId: 'github', url: 'https://github.com/newsriver/Newsriver-lib.git']]])
+    checkout([$class: 'GitSCM', branches: [[name: '*/master']], doGenerateSubmoduleConfigurations: false, extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir: 'Newsriver-lib']], submoduleCfg: [], userRemoteConfigs: [[credentialsId: 'github', url: 'https://github.com/newsriver/Newsriver-lib.git']]])
     stage 'checkout gander'
     checkout([$class: 'GitSCM', branches: [[name: '*/master']], doGenerateSubmoduleConfigurations: false, extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir: 'Newsriver-gander']], submoduleCfg: [], userRemoteConfigs: [[credentialsId: 'github', url: 'https://github.com/newsriver/gander.git']]])
 
@@ -27,11 +27,7 @@ node {
         deployDockerImage(projectName, dockerRegistry)
         restartDockerContainer(marathonAppId, projectName, dockerRegistry, marathonURL)
     }
-
-    if (env.BRANCH_NAME == "dc") {
-        deployDockerImage(projectName, dockerRegistry)
-        restartDockerContainer(marathonAppId, projectName, dockerRegistry, marathonURL)
-    }
+    
 
 }
 
