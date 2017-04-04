@@ -1,8 +1,8 @@
 #!groovy​
 
 def marathonAppId = '/newsriver/newsriver-mill'
-def projectName = 'newsriver-mill'
-def dockerRegistry = 'docker-registry-v2.newsriver.io:5000'
+def projectName = 'newsriver-io/newsriver-mill'
+def dockerRegistry = 'gcr.io'
 def marathonURL = 'http://leader.mesos:8080/'
 
 node {
@@ -27,7 +27,7 @@ node {
         deployDockerImage(projectName, dockerRegistry)
         restartDockerContainer(marathonAppId, projectName, dockerRegistry, marathonURL)
     }
-    
+
 
 }
 
@@ -71,4 +71,5 @@ def initDocker() {
     if (status != 0) {
         sh 'service docker start'
     }
+    sh 'docker login -u _json_key -p "$(cat Newsriver-60566afa2bab.json)" https://gcr.io'
 }
