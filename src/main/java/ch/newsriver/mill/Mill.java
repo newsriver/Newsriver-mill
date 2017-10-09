@@ -300,10 +300,10 @@ public class Mill extends Processor<HTML, Article> implements Runnable {
             }
             try {
                 String indexName = "newsriver";
-                article.setIndexName(indexName);
                 IndexResponse response = ArticleFactory.getInstance().saveArticle(article, urlHash, indexName);
                 if (response != null && response.getId() != null && !response.getId().isEmpty()) {
                     article.setId(response.getId());
+                    article.setIndexName(response.getIndex());
                     MillMain.addMetric("Articles out", 1);
                     if (response.status() == RestStatus.CREATED) {
                         metrics.logMetric("submitted raw-article", html.getReferral());
