@@ -1,6 +1,5 @@
 package ch.newsriver.mill;
 
-import ch.newsriver.dao.ElasticsearchUtil;
 import ch.newsriver.data.content.Article;
 import ch.newsriver.data.content.ArticleFactory;
 import ch.newsriver.data.html.HTML;
@@ -26,9 +25,7 @@ import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexResponse;
-import org.elasticsearch.client.Client;
 import org.elasticsearch.rest.RestStatus;
 
 import java.io.FileNotFoundException;
@@ -231,21 +228,9 @@ public class Mill extends Processor<HTML, Article> implements Runnable {
             return output;
         }
 
-        Client client = null;
-        client = ElasticsearchUtil.getInstance().getClient();
-
 
         try {
-            GetResponse response = client.prepareGet("newsriver", "article", urlHash).execute().actionGet();
-            if (response.isExists()) {
-                try {
-                    article = mapper.readValue(response.getSourceAsString(), Article.class);
-                } catch (IOException e) {
-                    logger.fatal("Unable to deserialize article", e);
-                    output.setSuccess(false);
-                    return output;
-                }
-            }
+            article = ArticleFactory.getInstance().getArticle(urlHash);
         } catch (Exception e) {
             logger.error("Unable to get article from elasticsearch", e);
             output.setSuccess(false);
@@ -314,7 +299,9 @@ public class Mill extends Processor<HTML, Article> implements Runnable {
                 }
             }
             try {
-                IndexResponse response = ArticleFactory.getInstance().saveArticle(article, urlHash);
+                String indexName = "newsriver";
+                article.setIndexName(indexName);
+                IndexResponse response = ArticleFactory.getInstance().saveArticle(article, urlHash, indexName);
                 if (response != null && response.getId() != null && !response.getId().isEmpty()) {
                     article.setId(response.getId());
                     MillMain.addMetric("Articles out", 1);
