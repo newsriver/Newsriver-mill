@@ -6,7 +6,7 @@
             <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"/>
         </Console>
         <Socket name="Logstash" host="logstash.marathon.services.newsriver.io" port="31999">
-            <SerializedLayout/>
+            <JsonLayout compact="true" eventEol="true" charset="UTF-8"/>
         </Socket>
     </Appenders>
     <Loggers>
