@@ -38,8 +38,10 @@ import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.Properties;
 
 /**
@@ -55,6 +57,7 @@ public class Mill extends Processor<HTML, Article> implements Runnable {
     private static final ObjectMapper mapper = new ObjectMapper();
     private static int MAX_EXECUTUION_DURATION = 120;
 
+    private final SimpleDateFormat indexNameFormat = new SimpleDateFormat("'newsriver-data'-yyyy.MM");
 
     Consumer<String, String> consumer;
     Producer<String, String> producer;
@@ -299,8 +302,7 @@ public class Mill extends Processor<HTML, Article> implements Runnable {
                 }
             }
             try {
-                String indexName = "newsriver";
-                IndexResponse response = ArticleFactory.getInstance().saveArticle(article, urlHash, indexName);
+                IndexResponse response = ArticleFactory.getInstance().saveArticle(article, urlHash, indexNameFormat.format(new Date()));
                 if (response != null && response.getId() != null && !response.getId().isEmpty()) {
                     article.setId(response.getId());
                     article.setIndexName(response.getIndex());
