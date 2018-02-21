@@ -249,8 +249,8 @@ public class Mill extends Processor<HTML, Article> implements Runnable {
                 if (notFound) {
                     article.getReferrals().add(html.getReferral());
                 } else {
-                    Exception e = new Exception("ref url:" + referral.getUrl() + "\n artocle:" + article.getId());
-                    logger.warn("Found a duplicate referral to the same article, Newsriver-Scout should prevent this.", e);
+                    //Exception e = new Exception("ref url:" + referral.getUrl() + "\n artocle:" + article.getId());
+                    logger.warn("Found a duplicate referral to the same article, Newsriver-Scout should prevent this.");
                     //Do not propagate this article further
                     //TODO: eventually if we plan to update articles or their referral we should not process the article
                     output.setSuccess(false);
