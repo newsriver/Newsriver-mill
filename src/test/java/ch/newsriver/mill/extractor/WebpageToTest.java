@@ -13,6 +13,7 @@ public class WebpageToTest {
     private String source;
     private BaseURL referral;
     private String publishDate;
+    private String text;
 
     public String getTitle() {
         return title;
@@ -54,5 +55,13 @@ public class WebpageToTest {
 
     public void setPublishDate(String publishDate) {
         this.publishDate = publishDate;
+    }
+
+    public String getText() {
+        return text;
+    }
+
+    public void setText(String text) {
+        this.text = text;
     }
 }

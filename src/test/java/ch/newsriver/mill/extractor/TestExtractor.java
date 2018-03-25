@@ -23,9 +23,11 @@ import java.io.InputStream;
 import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Created by eliapalme on 12/09/16.
@@ -97,5 +99,51 @@ public class TestExtractor {
 
         }
     }
+
+    @Test
+    public void testTextExtraction() {
+        if (this.webpage.getText() != null) {
+            PageInfo pageInfo = Gander.extract(this.webpage.getSource(), "all").get();
+            String text = "";
+            if (pageInfo.cleanedText().nonEmpty()) {
+                text = pageInfo.cleanedText().get();
+            }
+            float match = matchingWords(this.webpage.getText(),text);
+
+            assertTrue("Missing text:"+match,match >= -0.15f);
+            assertTrue("Extra text:"+match,match <= 0.16f);
+        }
+    }
+
+    float matchingWords(String original, String extracted){
+
+        ArrayList<String> originalWords = new ArrayList<>(Arrays.asList(original.split(" ")));
+        ArrayList<String> extractedWords =  new ArrayList<>(Arrays.asList(extracted.split(" ")));
+        ArrayList<String> missingWords =  new ArrayList<>();
+
+        for(String word : originalWords){
+            int index = extractedWords.indexOf(word);
+            if(index>=0){
+                extractedWords.remove(index);
+            }else{
+                missingWords.add(word);
+            }
+        }
+
+        float missing = (float)missingWords.size()/(float)originalWords.size()*-1.0f;
+        float extra   = (float) extractedWords.size()/ (float) originalWords.size();
+
+        if(!(missing >= -0.15f && extra <= 0.16f)){
+            //System.out.println("not a good match");
+        }
+
+        if(Math.abs(missing)>=extra){
+            return missing;
+        }else{
+            return extra;
+        }
+
+    }
+
 
 }
