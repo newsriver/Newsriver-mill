@@ -42,6 +42,8 @@ import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
 
 /**
@@ -124,11 +126,11 @@ public class Mill extends Processor<HTML, Article> implements Runnable {
         this.shutdown();
         consumer.close();
         producer.close();
-        metrics.logMetric("shutdown", null);
+        metrics.logMetric("shutdown");
     }
 
     public void run() {
-        metrics.logMetric("start", null);
+        metrics.logMetric("start");
         while (run) {
             try {
                 this.waitFreeBatchExecutors(batchSize);
@@ -174,7 +176,7 @@ public class Mill extends Processor<HTML, Article> implements Runnable {
                                 }
                                 //The website is unknow instruct Intell to getter informarion about the website and update the article
                                 producer.send(new ProducerRecord<String, String>("website-url", articleURI.getScheme() + "://" + articleURI.getHost(), output.getOutput().getId()));
-                                metrics.logMetric("submitted website-url", null);
+                                metrics.logMetric("submitted website-url");
                             }
                         } else {
                             if (output.getIntput().getReferral() instanceof ManualURL) {
@@ -280,7 +282,9 @@ public class Mill extends Processor<HTML, Article> implements Runnable {
 
             if (article == null) {
                 logger.warn("Gander was unable to extract the content");
-                metrics.logMetric("unable to extract content", html.getReferral());
+                Map<String, String> metadata = new HashMap<>();
+                metadata.put("html", html.getRawHTML());
+                metrics.logMetric("unable to extract content", html.getReferral(), metadata);
                 MillMain.addMetric("Articles missed", 1);
             }
         }
