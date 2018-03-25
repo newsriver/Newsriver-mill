@@ -110,8 +110,10 @@ public class TestExtractor {
             }
             float match = matchingWords(this.webpage.getText(),text);
 
-            assertTrue("Missing text:"+match,match >= -0.15f);
-            assertTrue("Extra text:"+match,match <= 0.16f);
+            //The following number should become stricter
+            //Currently too relaxed
+            assertTrue("Missing text:"+match,match >= -0.35f);
+            assertTrue("Extra text:"+match,match <= 0.35f);
         }
     }
 
