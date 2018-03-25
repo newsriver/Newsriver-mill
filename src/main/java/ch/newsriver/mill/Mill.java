@@ -42,8 +42,6 @@ import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Properties;
 
 /**
@@ -282,9 +280,10 @@ public class Mill extends Processor<HTML, Article> implements Runnable {
 
             if (article == null) {
                 logger.warn("Gander was unable to extract the content");
-                Map<String, String> metadata = new HashMap<>();
+                /*Map<String, String> metadata = new HashMap<>();
                 metadata.put("html", html.getRawHTML());
-                metrics.logMetric("unable to extract content", html.getReferral(), metadata);
+                metrics.logMetric("unable to extract content", html.getReferral(), metadata);*/
+                metrics.logMetric("unable to extract content", html.getReferral());
                 MillMain.addMetric("Articles missed", 1);
             }
         }
